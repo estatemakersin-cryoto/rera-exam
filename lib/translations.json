@@ -1,0 +1,23 @@
+{
+  "dashboard": {
+    "welcome": {
+      "en": "Welcome",
+      "mr": "स्वागत आहे"
+    },
+    "yourProgress": {
+      "en": "Your Test Progress",
+      "mr": "आपली परीक्षा प्रगती"
+    },
+    "testsCompleted": {
+      "en": "Tests Completed",
+      "mr": "पूर्ण केलेले टेस्ट"
+    }
+  },
+
+  "revision": {
+    "title": {
+      "en": "Revision Topics",
+      "mr": "पुनरावलोकन विषय"
+    }
+  }
+}

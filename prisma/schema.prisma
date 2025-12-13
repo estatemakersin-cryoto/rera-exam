@@ -1,0 +1,153 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                   String         @id @default(cuid())
+  email                String         @unique
+  createdAt            DateTime       @default(now())
+  fullName             String
+  isAdmin              Boolean        @default(false)
+  mobile               String?        @unique
+  passwordHash         String
+  registrationNo       String         @unique
+  testsRemaining       Int            @default(0)
+  packageExpiry        DateTime?
+  packagePurchased     Boolean        @default(false)
+  packagePurchasedDate DateTime?
+  referralCode         String?
+  referralCount        Int            @default(0)
+  referredBy           String?
+  testsCompleted       Int            @default(0)
+  testsUnlocked        Int            @default(2)
+  revisionAttempts     Int            @default(0)
+  paymentProofs        PaymentProof[]
+  referralAsConverted  Referral[]     @relation("ReferralConvertedUser")
+  referralsMade        Referral[]     @relation("UserReferrals")
+  attempts             TestAttempt[]
+}
+
+model Referral {
+  id              Int            @id @default(autoincrement())
+  referrerId      String
+  name            String?
+  mobile          String
+  status          ReferralStatus @default(PENDING)
+  convertedUserId String?
+  createdAt       DateTime       @default(now())
+  convertedUser   User?          @relation("ReferralConvertedUser", fields: [convertedUserId], references: [id])
+  referrer        User           @relation("UserReferrals", fields: [referrerId], references: [id])
+}
+
+model Chapter {
+  id                   Int               @id @default(autoincrement())
+  chapterNumber        Int               @unique
+  titleEn              String
+  titleMr              String?
+  isActive             Boolean           @default(true)
+  actChapterNameEn     String?
+  actChapterNameMr     String?
+  descriptionEn        String?
+  descriptionMr        String?
+  displayInApp         Boolean           @default(true)
+  mahareraEquivalentEn String?
+  mahareraEquivalentMr String?
+  orderIndex           Int?
+  sections             String?
+  questions            Question[]
+  revision             RevisionContent[]
+}
+
+model RevisionContent {
+  id        Int      @id @default(autoincrement())
+  chapterId Int
+  contentEn String?
+  contentMr String?
+  imageUrl  String?
+  qaJson    Json?    @default("[]")
+  createdAt DateTime @default(now())
+  order     Int      @default(0)
+  titleEn   String
+  titleMr   String
+  updatedAt DateTime @updatedAt
+  chapter   Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@index([chapterId])
+}
+
+model Question {
+  questionMr    String?
+  correctAnswer String
+  difficulty    Difficulty @default(MODERATE)
+  chapterId     Int
+  questionEn    String
+  id            Int        @id @default(autoincrement())
+  optionAEn     String
+  optionAMr     String?
+  optionBEn     String
+  optionBMr     String?
+  optionCEn     String
+  optionCMr     String?
+  optionDEn     String
+  optionDMr     String?
+  chapter       Chapter    @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  responses     Response[]
+}
+
+model TestAttempt {
+  id             String     @id @default(cuid())
+  userId         String?
+  startTime      DateTime   @default(now())
+  endTime        DateTime?
+  score          Int?
+  totalQuestions Int        @default(50)
+  correctAnswers Int?
+  status         TestStatus @default(IN_PROGRESS)
+  responses      Response[]
+  user           User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Response {
+  id         String      @id @default(cuid())
+  attemptId  String
+  userAnswer String?
+  isCorrect  Boolean?
+  createdAt  DateTime    @default(now())
+  questionId Int
+  attempt    TestAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question   Question    @relation(fields: [questionId], references: [id])
+}
+
+model PaymentProof {
+  id            String   @id @default(cuid())
+  userId        String
+  amount        Int
+  status        String   @default("PENDING")
+  createdAt     DateTime @default(now())
+  notes         String?
+  planType      String
+  transactionId String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum Difficulty {
+  EASY
+  MODERATE
+  HARD
+}
+
+enum TestStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+}
+
+enum ReferralStatus {
+  PENDING
+  SUCCESS
+}
