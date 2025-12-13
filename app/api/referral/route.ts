@@ -37,7 +37,7 @@ async function ensureReferralCode(userId: string) {
 export async function GET(req: NextRequest) {
   try {
     const session = await requireUser();
-    const userId = session.userId; // ✅ STRING, no Number()
+    const userId = session.id; // ✅ FIXED
 
     const referralCode = await ensureReferralCode(userId);
 
@@ -60,10 +60,10 @@ export async function GET(req: NextRequest) {
 👋 Hi! I am preparing for the MahaRERA Certificate of Competency exam using EstateMakers.
 
 They provide:
-• Unlimited chapter-wise revision
-• 5 full mock tests (TCS-style)
-• English + Marathi questions
-• 50 MCQs • 60 minutes • 100 marks • No negative marking
+- Unlimited chapter-wise revision
+- 5 full mock tests (TCS-style)
+- English + Marathi questions
+- 50 MCQs • 60 minutes • 100 marks • No negative marking
 
 Register here: https://estatemakers.in/register
 Use my referral code: ${referralCode}
@@ -93,7 +93,7 @@ So that I can unlock extra mock tests. Thanks! 🙏
 export async function POST(req: NextRequest) {
   try {
     const session = await requireUser();
-    const userId = session.userId; // ✅ STRING
+    const userId = session.id; // ✅ FIXED
 
     const body = await req.json();
     const name = (body.name || "").toString().trim() || null;

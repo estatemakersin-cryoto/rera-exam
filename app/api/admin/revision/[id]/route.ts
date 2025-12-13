@@ -3,10 +3,10 @@ import { prisma } from "@/lib/prisma";
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const id = parseInt(params.id);
+    const id = parseInt(context.params.id);
 
     if (isNaN(id)) {
       return NextResponse.json(
@@ -43,10 +43,10 @@ export async function PUT(
       data: {
         titleEn: body.titleEn,
         titleMr: body.titleMr,
-        contentEn: body.contentEn || null,
-        contentMr: body.contentMr || null,
-        imageUrl: body.imageUrl || null,
-        qaJson: body.qaJson || [],
+        contentEn: body.contentEn ?? null,
+        contentMr: body.contentMr ?? null,
+        imageUrl: body.imageUrl ?? null,
+        qaJson: body.qaJson ?? [],
         order: body.order ?? existing.order,
       },
     });
