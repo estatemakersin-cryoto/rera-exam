@@ -42,7 +42,7 @@ async function ensureReferralCode(userId: string) {
 export async function GET(req: NextRequest) {
   try {
     const session = await requireUser();
-    const userId = session.id;
+    const userId = session.userId;
 
     const referralCode = await ensureReferralCode(userId);
 
@@ -99,7 +99,7 @@ So that I can unlock extra mock tests. Thanks! 🙏
 export async function POST(req: NextRequest) {
   try {
     const session = await requireUser();
-    const userId = session.id;
+    const userId = session.userId;
 
     const body = await req.json();
     const name = (body.name || "").toString().trim() || null;

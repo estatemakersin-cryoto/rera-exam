@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
     // Get session
     const session = await getSession();
     
-    if (!session || !session.id) {
+    if (!session) {
       return NextResponse.json(
         { error: "Not authenticated. Please login." },
         { status: 401 }
@@ -27,12 +27,12 @@ export async function POST(req: NextRequest) {
     const planType = "PLAN_500";
     const amount = 500;
 
-    console.log("📝 Creating payment proof for user:", session.id);
+    console.log("📝 Creating payment proof for user:", session.userId);
 
     // Create payment proof
     const payment = await prisma.paymentProof.create({
       data: {
-        userId: session.id,           // ✅ session.id is a String (cuid)
+        userId: session.userId,           // ✅ session.userId is a String (cuid)
         amount: amount,
         planType: planType,
         transactionId: transactionId.trim(),

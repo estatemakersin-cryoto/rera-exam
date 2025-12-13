@@ -8,13 +8,13 @@ const SECRET = new TextEncoder().encode(process.env.JWT_SECRET!);
 // AUTH PAYLOAD (stored inside JWT)
 // ============================================
 
-export interface AuthPayload extends JWTPayload {
-  id: string;
-  userId: string; // ✅ Add this alias
+export interface AuthPayload {
+  userId: string;
   fullName: string;
-  mobile: string | null;
+  mobile?: string | null;
+  email?: string | null;
   isAdmin: boolean;
-  packagePurchased: boolean;
+  packagePurchased?: boolean | null;
 }
 
 // ============================================
@@ -37,7 +37,7 @@ export async function verifyPassword(
 // ============================================
 
 export async function signToken(payload: AuthPayload) {
-  return new SignJWT(payload as JWTPayload) // 👈 Cast to JWTPayload
+  return new SignJWT(payload as unknown as JWTPayload)
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setIssuedAt()
     .setExpirationTime("7d")

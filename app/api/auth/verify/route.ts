@@ -7,7 +7,7 @@ export async function GET() {
     // Get session from JWT cookie
     const session = await getSession();
 
-    if (!session || !session.id) {
+    if (!session) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -16,7 +16,7 @@ export async function GET() {
 
     // Fetch user from database
     const user = await prisma.user.findUnique({
-      where: { id: session.id },
+      where: { id: session.userId },
     });
 
     if (!user) {
