@@ -1,14 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { NextResponse } from "next/server";
 
 export async function PUT(
-  req: NextRequest,
+  req: Request,
   context: { params: { id: string } }
 ) {
   try {
-    const id = parseInt(context.params.id);
+    const id = Number(context.params.id);
 
-    if (isNaN(id)) {
+    if (!id) {
       return NextResponse.json(
         { error: "Invalid revision ID" },
         { status: 400 }
@@ -17,15 +17,13 @@ export async function PUT(
 
     const body = await req.json();
 
-    // Validate required fields
     if (!body.titleEn || !body.titleMr) {
       return NextResponse.json(
-        { error: "titleEn and titleMr are required" },
+        { error: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    // Check if revision exists
     const existing = await prisma.revisionContent.findUnique({
       where: { id },
     });
@@ -37,7 +35,6 @@ export async function PUT(
       );
     }
 
-    // Update the revision
     const updated = await prisma.revisionContent.update({
       where: { id },
       data: {
@@ -53,13 +50,12 @@ export async function PUT(
 
     return NextResponse.json({
       success: true,
-      message: "Revision updated successfully",
       revision: updated,
     });
-  } catch (error) {
-    console.error("Update revision error:", error);
+  } catch (e) {
+    console.error("Update revision error:", e);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to update revision" },
+      { error: "Failed to update revision" },
       { status: 500 }
     );
   }
