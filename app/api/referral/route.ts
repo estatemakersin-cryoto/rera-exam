@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 
+// Type for referrals to avoid TS errors
+interface ReferralItem {
+  status: string;
+}
+
 // Helper: ensure user is logged in
 async function requireUser() {
   const session = await getSession();
@@ -37,7 +42,7 @@ async function ensureReferralCode(userId: string) {
 export async function GET(req: NextRequest) {
   try {
     const session = await requireUser();
-    const userId = session.id; // ✅ FIXED
+    const userId = session.id;
 
     const referralCode = await ensureReferralCode(userId);
 
@@ -46,8 +51,9 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
+    // FIXED TYPE ERROR by typing (r: ReferralItem)
     const successfulReferrals = referrals.filter(
-      (r) => r.status === "SUCCESS"
+      (r: ReferralItem) => r.status === "SUCCESS"
     ).length;
 
     // Unlock pattern: 2, 4 & 5
@@ -93,7 +99,7 @@ So that I can unlock extra mock tests. Thanks! 🙏
 export async function POST(req: NextRequest) {
   try {
     const session = await requireUser();
-    const userId = session.id; // ✅ FIXED
+    const userId = session.id;
 
     const body = await req.json();
     const name = (body.name || "").toString().trim() || null;
@@ -111,6 +117,7 @@ export async function POST(req: NextRequest) {
       where: { id: userId, mobile },
       select: { id: true },
     });
+
     if (self) {
       return NextResponse.json(
         { error: "You cannot refer your own mobile number." },

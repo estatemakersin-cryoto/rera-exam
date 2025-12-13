@@ -10,6 +10,7 @@ const SECRET = new TextEncoder().encode(process.env.JWT_SECRET!);
 
 export interface AuthPayload extends JWTPayload {
   id: string;
+  userId: string; // ✅ Add this alias
   fullName: string;
   mobile: string | null;
   isAdmin: boolean;

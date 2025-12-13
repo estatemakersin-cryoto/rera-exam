@@ -12,8 +12,7 @@ async function requireUser() {
 export async function POST(req: NextRequest) {
   try {
     const session = await requireUser();
-    const userId = session.userId as string; // ✅ Type assertion
-
+    const userId = session.id 
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
 

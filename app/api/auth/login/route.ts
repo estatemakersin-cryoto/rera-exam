@@ -24,13 +24,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const token = await signToken({
-      id: user.id,
-      fullName: user.fullName,
-      mobile: user.mobile,
-      isAdmin: user.isAdmin,
-      packagePurchased: user.packagePurchased,
-    });
+    const token = await signToken({ userId: user.id });
 
     const redirect = user.isAdmin ? "/admin" : "/dashboard";
 
