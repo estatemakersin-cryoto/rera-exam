@@ -1,19 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { signToken } from "@/lib/auth";
+import { verifyPassword, signToken } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
-    const { mobile } = await req.json();
+    const { mobile, password } = await req.json();
 
+    // Validate input
     if (!mobile || mobile.length !== 10) {
       return NextResponse.json(
-        { error: "Enter valid 10-digit mobile number" },
+        { error: "Invalid mobile number" },
         { status: 400 }
       );
     }
 
-    const user = await prisma.user.findFirst({
+    if (!password || password.length < 4) {
+      return NextResponse.json(
+        { error: "Invalid password" },
+        { status: 400 }
+      );
+    }
+
+    // Look for user
+    const user = await prisma.user.findUnique({
       where: { mobile },
     });
 
@@ -24,29 +33,50 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const token = await signToken({ userId: user.id });
+    // Verify password
+    const isValid = await verifyPassword(password, user.passwordHash);
 
-    const redirect = user.isAdmin ? "/admin" : "/dashboard";
+    if (!isValid) {
+      return NextResponse.json(
+        { error: "Incorrect password" },
+        { status: 401 }
+      );
+    }
 
-    const res = NextResponse.json({ 
-      message: "Login successful", 
-      redirect 
+    // ✅ Create JWT token with correct AuthPayload
+    const token = await signToken({
+      userId: user.id,
+      fullName: user.fullName,
+      mobile: user.mobile,
+      email: user.email,
+      isAdmin: user.isAdmin,
+      packagePurchased: user.packagePurchased,
     });
 
-    res.cookies.set("auth-token", token, {
+    // Set cookie
+    const response = NextResponse.json(
+      {
+        success: true,
+        message: "Login successful",
+      },
+      { status: 200 }
+    );
+
+    response.cookies.set("auth-token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      secure: true,
+      sameSite: "strict",
       path: "/",
-      maxAge: 604800,
+      maxAge: 60 * 60 * 24 * 7, // 7 days
     });
 
-    return res;
+    return response;
 
-  } catch (err) {
-    console.error("Login Error:", err);
+  } catch (error) {
+    console.error("Login error:", error);
+
     return NextResponse.json(
-      { error: "Login failed" }, 
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
