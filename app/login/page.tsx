@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 export default function LoginPage() {
   const router = useRouter();
   const [mobile, setMobile] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -20,11 +21,17 @@ export default function LoginPage() {
       return;
     }
 
+    if (password.length < 4) {
+      setError("Password must be at least 4 characters");
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mobile }),
+        body: JSON.stringify({ mobile, password }),
       });
 
       const data = await res.json();
@@ -35,20 +42,23 @@ export default function LoginPage() {
         return;
       }
 
+      // Redirect dashboard
       window.location.href = data.redirect;
-      
+
     } catch (err) {
       setError("Something went wrong");
     } finally {
       setLoading(false);
     }
   };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
       <div className="bg-white shadow-lg rounded-lg p-8 w-full max-w-md">
         <h2 className="text-2xl font-bold text-center mb-6">Login</h2>
 
         <form onSubmit={handleLogin} className="space-y-6">
+          {/* MOBILE */}
           <div>
             <label className="block mb-1 font-medium">Mobile Number</label>
             <div className="flex items-center border rounded-lg px-3 py-2">
@@ -61,6 +71,18 @@ export default function LoginPage() {
                 onChange={(e) => setMobile(e.target.value.slice(0, 10))}
               />
             </div>
+          </div>
+
+          {/* PASSWORD */}
+          <div>
+            <label className="block mb-1 font-medium">Password</label>
+            <input
+              type="password"
+              className="w-full border rounded-lg px-3 py-2 outline-none"
+              placeholder="Enter password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
           </div>
 
           {error && (
