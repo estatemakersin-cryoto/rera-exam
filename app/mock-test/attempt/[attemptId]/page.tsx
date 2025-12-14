@@ -1,41 +1,38 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { useLanguage } from "@/contexts/LanguageContext";
+import { useEffect, useState, useCallback } from "react";
+import { useRouter, useParams } from "next/navigation";
+import LanguageToggle from "@/components/LanguageToggle";
+import { useLanguage } from "@/app/hooks/useLanguage";
+import { notFound } from "next/navigation";
 
-// Types
+
 interface Question {
-  id: string;
+  responseId: string;
+  questionId: number;
   questionEn: string;
-  questionMr: string;
+  questionMr: string | null;
   optionAEn: string;
-  optionAMr: string;
+  optionAMr: string | null;
   optionBEn: string;
-  optionBMr: string;
+  optionBMr: string | null;
   optionCEn: string;
-  optionCMr: string;
+  optionCMr: string | null;
   optionDEn: string;
-  optionDMr: string;
-  correctAnswer: string;
-  difficulty: string;
-}
-
-interface Response {
-  id: string;
-  questionId: string;
+  optionDMr: string | null;
   userAnswer: string | null;
-  question: Question;
+  correctAnswer: string;
+  isCorrect?: boolean;
 }
 
 interface AttemptData {
   id: string;
-  status: string;
   startTime: string;
-  endTime: string | null;
-  score: number | null;
-  correctAnswers: number | null;
-  responses: Response[];
+  totalQuestions: number;
+  testNumber: number;
+  status?: string;
+  score?: number;
+  correctAnswers?: number;
 }
 
 export default function AttemptPage() {
@@ -48,340 +45,296 @@ export default function AttemptPage() {
   const [attempt, setAttempt] = useState<AttemptData | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [timer, setTimer] = useState(3600); // 60 minutes
+  const [timer, setTimer] = useState(3600);
   const [submitting, setSubmitting] = useState(false);
-  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
 
-  // Fetch attempt data
-  useEffect(() => {
-    const fetchAttempt = async () => {
-      try {
-        const response = await fetch(`/api/attempt/${attemptId}`);
-        const data = await response.json();
-
-        if (data.error) {
-          console.error("Error fetching attempt:", data.error);
-          router.push("/tests");
-          return;
-        }
-
-        setAttempt(data);
-        
-        // Extract questions from responses
-        const questionsData = data.responses.map((r: Response) => r.question);
-        setQuestions(questionsData);
-
-        // Set selected answer if already answered
-        if (data.responses[0]?.userAnswer) {
-          setSelectedAnswer(data.responses[0].userAnswer);
-        }
-
-        setLoading(false);
-      } catch (error) {
-        console.error("Failed to fetch attempt:", error);
-        router.push("/tests");
-      }
-    };
-
-    if (attemptId) {
-      fetchAttempt();
+  // SUBMIT TEST
+  const handleSubmit = useCallback(async (auto = false) => {
+    if (!auto) {
+      const ok = confirm("Submit test? You cannot change answers later.");
+      if (!ok) return;
     }
-  }, [attemptId, router]);
-
-  // Timer countdown
-  useEffect(() => {
-    if (loading || !attempt || attempt.status === "COMPLETED") return;
-
-    const interval = setInterval(() => {
-      setTimer((prev) => {
-        if (prev <= 1) {
-          handleSubmit(); // Auto-submit when time runs out
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [loading, attempt]);
-
-  // Format timer display
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-  };
-
-  // Handle answer selection
-  const handleAnswerSelect = async (answer: string) => {
-    if (!attempt || submitting) return;
-
-    setSelectedAnswer(answer);
-
-    try {
-      // Save answer to database
-      await fetch(`/api/save-answer`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          responseId: attempt.responses[currentIndex].id,
-          userAnswer: answer,
-        }),
-      });
-    } catch (error) {
-      console.error("Failed to save answer:", error);
-    }
-  };
-
-  // Navigate to next question
-  const handleNext = () => {
-    if (currentIndex < questions.length - 1) {
-      const nextIndex = currentIndex + 1;
-      setCurrentIndex(nextIndex);
-      
-      // Load saved answer for next question
-      const nextAnswer = attempt?.responses[nextIndex]?.userAnswer;
-      setSelectedAnswer(nextAnswer || null);
-    }
-  };
-
-  // Navigate to previous question
-  const handlePrevious = () => {
-    if (currentIndex > 0) {
-      const prevIndex = currentIndex - 1;
-      setCurrentIndex(prevIndex);
-      
-      // Load saved answer for previous question
-      const prevAnswer = attempt?.responses[prevIndex]?.userAnswer;
-      setSelectedAnswer(prevAnswer || null);
-    }
-  };
-
-  // Jump to specific question
-  const handleJumpToQuestion = (index: number) => {
-    setCurrentIndex(index);
-    const answer = attempt?.responses[index]?.userAnswer;
-    setSelectedAnswer(answer || null);
-  };
-
-  // Submit test
-  const handleSubmit = async () => {
-    if (submitting) return;
-
-    const confirmSubmit = window.confirm(
-      "Are you sure you want to submit the test? This action cannot be undone."
-    );
-
-    if (!confirmSubmit) return;
 
     setSubmitting(true);
 
     try {
-      const response = await fetch(`/api/submit-test`, {
+      const res = await fetch("/api/mock-test/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ attemptId }),
       });
 
-      const data = await response.json();
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to submit test");
 
-      if (data.success) {
-        // ✅ Redirect to results page using returned attemptId
-        router.push(`/attempt/${data.attemptId}`);
-      } else {
-        alert(data.error || "Failed to submit test");
-        setSubmitting(false);
-      }
-    } catch (error) {
-      console.error("Submission error:", error);
-      alert("Failed to submit test. Please try again.");
+      router.push(`/mock-test/result/${attemptId}`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to submit test";
+      alert(message);
       setSubmitting(false);
+    }
+  }, [attemptId, router]);
+
+  // LOAD ATTEMPT + QUESTIONS (runs ONCE)
+  useEffect(() => {
+    let active = true;
+
+    const load = async () => {
+      try {
+        const res = await fetch(`/api/mock-test/attempt/${attemptId}`, {
+          cache: "no-store",
+        });
+
+        const data = await res.json();
+
+        if (!active) return;
+
+        setAttempt(data.attempt);
+        setQuestions(data.questions);
+
+        if (data.attempt.status !== "COMPLETED") {
+          setTimer(3600);
+        }
+      } catch (error: unknown) {
+        console.error("Failed to load attempt:", error);
+        router.push("/mock-test");
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    load();
+    
+    return () => {
+      active = false;
+    };
+  }, [attemptId, router]); // ⚠️ Only attemptId and router
+
+  // TIMER (separate effect)
+  useEffect(() => {
+    if (!attempt || attempt.status === "COMPLETED") return;
+    if (timer <= 0) {
+      handleSubmit(true);
+      return;
+    }
+
+    const id = setInterval(() => setTimer((t) => t - 1), 1000);
+    return () => clearInterval(id);
+  }, [timer, attempt, handleSubmit]);
+
+  const formatTime = (sec: number) => {
+    const m = String(Math.floor(sec / 60)).padStart(2, "0");
+    const s = String(sec % 60).padStart(2, "0");
+    return `${m}:${s}`;
+  };
+
+  // SAVE ANSWER
+  const saveAnswer = async (q: Question, ans: string) => {
+    try {
+      await fetch("/api/mock-test/save-answer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ responseId: q.responseId, answer: ans }),
+      });
+
+      setQuestions((prev) =>
+        prev.map((i) => (i.responseId === q.responseId ? { ...i, userAnswer: ans } : i))
+      );
+    } catch (error: unknown) {
+      console.error("Failed to save answer:", error);
     }
   };
 
-  // Calculate answered questions
-  const answeredCount = attempt?.responses.filter(r => r.userAnswer).length || 0;
-  const unansweredCount = questions.length - answeredCount;
-
-  if (loading) {
+  // LOADING SCREEN
+  if (loading || !attempt) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-xl">Loading test...</div>
+      <div className="min-h-screen flex items-center justify-center text-xl">
+        Loading Test...
       </div>
     );
   }
 
-  if (!attempt || !questions.length) {
+  // RESULT SCREEN
+  if (attempt.status === "COMPLETED") {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-xl text-red-600">Test not found</div>
-      </div>
-    );
-  }
+      <div className="min-h-screen bg-gray-100 p-6">
+        <div className="max-w-3xl mx-auto bg-white p-6 rounded-lg shadow">
+          <h1 className="text-2xl font-bold text-blue-700 mb-4">
+            MahaRERA Mock Test Result
+          </h1>
 
-  const currentQuestion = questions[currentIndex];
+          <p className="text-lg">
+            <strong>Score:</strong> {attempt.score} / {attempt.totalQuestions}
+          </p>
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      {/* Header */}
-      <div className="bg-blue-600 text-white p-4 shadow-lg">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold">Estate Makers | MahaRERA Mock Test</h1>
-            <p className="text-sm">Test {currentIndex + 1} of {questions.length}</p>
-          </div>
-          
-          {/* Timer */}
-          <div className="bg-white text-blue-600 px-6 py-3 rounded-lg font-mono text-2xl font-bold">
-            {formatTime(timer)}
-          </div>
-        </div>
-      </div>
+          <p className="text-lg">
+            <strong>Correct Answers:</strong> {attempt.correctAnswers}
+          </p>
 
-      <div className="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Question Area */}
-        <div className="lg:col-span-2">
-          <div className="bg-white rounded-lg shadow-xl p-8">
-            {/* Question Header */}
-            <div className="mb-6">
-              <h2 className="text-xl font-semibold text-gray-800 mb-2">
-                Question {currentIndex + 1} / {questions.length}
-              </h2>
-              
-              {/* Language Toggle */}
-              <div className="flex gap-2 mb-4">
-                <button
-                  onClick={() => setLanguage("en")}
-                  className={`px-4 py-2 rounded ${
-                    language === "en"
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-200 text-gray-700"
-                  }`}
-                >
-                  English
-                </button>
-                <button
-                  onClick={() => setLanguage("mr")}
-                  className={`px-4 py-2 rounded ${
-                    language === "mr"
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-200 text-gray-700"
-                  }`}
-                >
-                  मराठी
-                </button>
-              </div>
+          <h2 className="text-xl font-semibold mt-6 mb-4">Your Answers</h2>
 
-              {/* Question Text */}
-              <p className="text-lg text-gray-900 leading-relaxed">
-                {language === "en" ? currentQuestion.questionEn : currentQuestion.questionMr}
+          {questions.map((q, i) => (
+            <div key={q.responseId} className="p-4 border rounded mb-3">
+              <p className="font-semibold">
+                {i + 1}. {q.questionEn}
+              </p>
+
+              <p>
+                <strong>Your Answer:</strong>{" "}
+                <span className={q.isCorrect ? "text-green-600" : "text-red-600"}>
+                  {q.userAnswer || "Not Answered"}
+                </span>
+              </p>
+
+              <p>
+                <strong>Correct Answer:</strong> {q.correctAnswer}
               </p>
             </div>
+          ))}
 
-            {/* Options */}
-            <div className="space-y-4 mb-8">
-              {["A", "B", "C", "D"].map((option) => (
-                <button
-                  key={option}
-                  onClick={() => handleAnswerSelect(option)}
-                  className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
-                    selectedAnswer === option
-                      ? "border-blue-600 bg-blue-50"
-                      : "border-gray-300 hover:border-blue-400"
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
-                        selectedAnswer === option
-                          ? "bg-blue-600 text-white"
-                          : "bg-gray-200 text-gray-700"
-                      }`}
-                    >
-                      {option}
-                    </div>
-                    <span className="flex-1 pt-1">
-                      {language === "en"
-                        ? currentQuestion[`option${option}En` as keyof Question]
-                        : currentQuestion[`option${option}Mr` as keyof Question]}
-                    </span>
-                  </div>
-                </button>
-              ))}
-            </div>
-
-            {/* Navigation Buttons */}
-            <div className="flex justify-between">
-              <button
-                onClick={handlePrevious}
-                disabled={currentIndex === 0}
-                className="px-6 py-3 bg-gray-300 text-gray-700 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-400 transition"
-              >
-                Previous
-              </button>
-
-              <button
-                onClick={handleNext}
-                disabled={currentIndex === questions.length - 1}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition"
-              >
-                Next
-              </button>
-            </div>
+          <div className="mt-6 text-center">
+            <button
+              onClick={() => router.push("/mock-test")}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Start New Test
+            </button>
           </div>
         </div>
+      </div>
+    );
+  }
 
-        {/* Sidebar - Question Palette */}
-        <div className="lg:col-span-1">
-          <div className="bg-white rounded-lg shadow-xl p-6 sticky top-6">
-            <h3 className="text-xl font-bold mb-4">Question Palette</h3>
+  // TEST UI
+  const q = questions[currentIndex];
 
-            {/* Stats */}
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="bg-green-100 p-3 rounded text-center">
-                <div className="text-2xl font-bold text-green-700">{answeredCount}</div>
-                <div className="text-sm text-gray-600">Answered</div>
-              </div>
-              <div className="bg-orange-100 p-3 rounded text-center">
-                <div className="text-2xl font-bold text-orange-700">{unansweredCount}</div>
-                <div className="text-sm text-gray-600">Unanswered</div>
-              </div>
-            </div>
+  type OptionKeyEn = "optionAEn" | "optionBEn" | "optionCEn" | "optionDEn";
+  type OptionKeyMr = "optionAMr" | "optionBMr" | "optionCMr" | "optionDMr";
 
-            {/* Question Grid */}
-            <div className="grid grid-cols-5 gap-2 mb-6">
-              {questions.map((_, index) => {
-                const isAnswered = attempt.responses[index]?.userAnswer;
-                const isCurrent = index === currentIndex;
+  return (
+    <div className="min-h-screen flex flex-col bg-gray-100">
+      {/* HEADER */}
+      <header className="bg-blue-900 text-white px-6 py-3 flex justify-between items-center">
+        <div>
+          <h1 className="text-lg font-bold">Estate Makers | MahaRERA Mock Test</h1>
+          <p className="text-xs opacity-80">Test {attempt.testNumber} of 5</p>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <div className="text-2xl font-bold">{formatTime(timer)}</div>
+          <div className="bg-white px-3 py-1 rounded">
+            <LanguageToggle language={language} onLanguageChange={setLanguage} />
+          </div>
+        </div>
+      </header>
+
+      <div className="flex flex-1">
+        {/* LEFT SIDE */}
+        <main className="w-2/3 p-4">
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h2 className="font-semibold mb-4">
+              Question {currentIndex + 1} / {questions.length}
+            </h2>
+
+            <p className="text-lg mb-6">
+              {language === "en" ? q.questionEn : q.questionMr || q.questionEn}
+            </p>
+
+            <div className="space-y-3 mb-6">
+              {(["A", "B", "C", "D"] as const).map((opt) => {
+                const keyEn = `option${opt}En` as OptionKeyEn;
+                const keyMr = `option${opt}Mr` as OptionKeyMr;
+
+                const text =
+                  language === "en" ? q[keyEn] : q[keyMr] || q[keyEn];
 
                 return (
-                  <button
-                    key={index}
-                    onClick={() => handleJumpToQuestion(index)}
-                    className={`w-full aspect-square rounded flex items-center justify-center font-semibold text-sm ${
-                      isCurrent
-                        ? "bg-blue-600 text-white ring-2 ring-blue-400"
-                        : isAnswered
-                        ? "bg-green-500 text-white"
-                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                    }`}
+                  <label
+                    key={opt}
+                    className={`flex items-start gap-3 border-2 p-4 rounded-lg cursor-pointer transition
+                      ${
+                        q.userAnswer === opt
+                          ? "border-blue-500 bg-blue-50"
+                          : "border-gray-300 hover:border-blue-300 hover:bg-blue-50"
+                      }
+                    `}
                   >
-                    {index + 1}
-                  </button>
+                    <input
+                      type="radio"
+                      checked={q.userAnswer === opt}
+                      onChange={() => saveAnswer(q, opt)}
+                      className="mt-1 w-4 h-4"
+                    />
+
+                    <span className="flex-1">
+                      <strong className="mr-2">{opt}.</strong>
+                      {text}
+                    </span>
+                  </label>
                 );
               })}
             </div>
 
-            {/* Submit Button */}
-            <button
-              onClick={handleSubmit}
-              disabled={submitting}
-              className="w-full bg-red-600 text-white py-4 rounded-lg font-bold text-lg hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {submitting ? "Submitting..." : "Submit Test"}
-            </button>
+            {/* NAVIGATION */}
+            <div className="flex justify-between mt-6">
+              <button
+                onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
+                disabled={currentIndex === 0}
+                className="px-6 py-2 bg-gray-300 rounded disabled:opacity-50 hover:bg-gray-400 transition-colors"
+              >
+                Previous
+              </button>
+
+              {currentIndex === questions.length - 1 ? (
+                <button
+                  onClick={() => handleSubmit(false)}
+                  className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors disabled:opacity-50"
+                  disabled={submitting}
+                >
+                  {submitting ? "Submitting..." : "Submit Test"}
+                </button>
+              ) : (
+                <button
+                  onClick={() => setCurrentIndex((i) => i + 1)}
+                  className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                >
+                  Next
+                </button>
+              )}
+            </div>
           </div>
-        </div>
+        </main>
+
+        {/* RIGHT SIDE - Palette */}
+        <aside className="w-1/3 p-4">
+          <div className="bg-white p-4 rounded-lg shadow sticky top-4">
+            <h3 className="font-bold mb-3">Question Palette</h3>
+
+            <div className="grid grid-cols-10 gap-2">
+              {questions.map((x, i) => (
+                <button
+                  key={x.responseId}
+                  onClick={() => setCurrentIndex(i)}
+                  className={`w-8 h-8 rounded text-xs font-semibold transition-colors
+                    ${i === currentIndex ? "ring-2 ring-blue-600" : ""}
+                    ${x.userAnswer ? "bg-green-500 text-white hover:bg-green-600" : "bg-gray-300 hover:bg-gray-400"}
+                  `}
+                >
+                  {i + 1}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-4 text-sm">
+              <p>
+                <strong>Answered:</strong> {questions.filter((x) => x.userAnswer).length}
+              </p>
+              <p>
+                <strong>Unanswered:</strong> {questions.filter((x) => !x.userAnswer).length}
+              </p>
+            </div>
+          </div>
+        </aside>
       </div>
     </div>
   );
