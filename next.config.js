@@ -2,6 +2,9 @@
 const nextConfig = {
   reactStrictMode: false,
   swcMinify: true,
+  experimental: {
+    serverComponentsExternalPackages: ['@prisma/client', 'bcrypt'],
+  },
 };
 
-module.exports = nextConfig;
+export default nextConfig;

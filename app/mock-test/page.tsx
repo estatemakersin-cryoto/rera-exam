@@ -10,28 +10,30 @@ export default function MockTestEntryPage() {
   const [loading, setLoading] = useState(false);
 
   const handleStart = async (e: React.FormEvent) => {
-  e.preventDefault();
-  if (!rollNo) {
-    alert("Please enter any roll number to continue");
-    return;
-  }
+    e.preventDefault();
+    if (!rollNo) {
+      alert("Please enter any roll number to continue");
+      return;
+    }
 
-  try {
-    setLoading(true);
-    const res = await fetch("/api/mock-test/start", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rollNo }), // No password
-    });
-
+    try {
+      setLoading(true);
+      const res = await fetch("/api/mock-test/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rollNo }), // No password needed for mock test
+      });
 
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || "Failed to start mock test");
       }
+      
       const data = await res.json();
       
-      router.push(`/mock-test/${data.attemptId}`);
+      // ✅ FIX: Change this line
+      router.push(`/mock-test/attempt/${data.attemptId}`);
+      
     } catch (err: any) {
       console.error(err);
       alert(err.message || "Failed to start test");

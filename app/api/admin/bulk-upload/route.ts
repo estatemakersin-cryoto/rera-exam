@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import * as XLSX from "xlsx";
 
+// ✅ ADD THESE TWO LINES
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 /* ============================================
    SMART MCQ FORMAT CONVERTER
    Converts various MCQ JSON formats to bilingual schema
