@@ -8,19 +8,24 @@ export default function MockTestEntryPage() {
   const [loading, setLoading] = useState(false);
 
   const handleStart = async () => {
+    setLoading(true);
+    
     try {
-      setLoading(true);
       const res = await fetch("/api/mock-test/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to start mock test");
+      }
+
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to start mock test");
       router.push(`/mock-test/attempt/${data.attemptId}`);
-    } catch (err) {
-      console.error("Mock test start error:", err);
+    } catch (error) {
+      console.error("Mock test start error:", error);
       alert("Failed to start test. Please try again.");
-    } finally {
       setLoading(false);
     }
   };
