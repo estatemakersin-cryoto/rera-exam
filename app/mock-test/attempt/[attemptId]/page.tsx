@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import LanguageToggle from "@/components/LanguageToggle";
 import { useLanguage } from "@/app/hooks/useLanguage";
@@ -60,6 +60,33 @@ export default function AttemptPage({
   const [timer, setTimer] = useState(3600); // 1 hour
   const [submitting, setSubmitting] = useState(false);
 
+  // SUBMIT TEST - useCallback to prevent dependency issues
+  const handleSubmit = useCallback(async (auto = false) => {
+    if (!auto) {
+      const ok = confirm("Submit test? You cannot change answers later.");
+      if (!ok) return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      const res = await fetch("/api/mock-test/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ attemptId }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to submit test");
+
+      router.push(`/mock-test/result/${attemptId}`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to submit test";
+      alert(message);
+      setSubmitting(false);
+    }
+  }, [attemptId, router]);
+
   // LOAD ATTEMPT + QUESTIONS
   useEffect(() => {
     let active = true;
@@ -80,7 +107,8 @@ export default function AttemptPage({
         if (data.attempt.status !== "COMPLETED") {
           setTimer(3600);
         }
-      } catch {
+      } catch (error: unknown) {
+        console.error("Failed to load attempt:", error);
         router.push("/mock-test");
       } finally {
         if (active) setLoading(false);
@@ -104,7 +132,7 @@ export default function AttemptPage({
 
     const id = setInterval(() => setTimer((t) => t - 1), 1000);
     return () => clearInterval(id);
-  }, [timer, attempt]);
+  }, [timer, attempt, handleSubmit]);
 
   const formatTime = (sec: number) => {
     const m = String(Math.floor(sec / 60)).padStart(2, "0");
@@ -124,34 +152,10 @@ export default function AttemptPage({
       setQuestions((prev) =>
         prev.map((i) => (i.responseId === q.responseId ? { ...i, userAnswer: ans } : i))
       );
-    } catch {}
+    } catch (error: unknown) {
+      console.error("Failed to save answer:", error);
+    }
   };
-
-  // SUBMIT TEST
-  async function handleSubmit(auto = false) {
-    if (!auto) {
-      const ok = confirm("Submit test? You cannot change answers later.");
-      if (!ok) return;
-    }
-
-    setSubmitting(true);
-
-    try {
-      const res = await fetch("/api/mock-test/submit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ attemptId }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-
-      router.push(`/mock-test/result/${attemptId}`);
-    } catch (err: any) {
-      alert(err.message);
-      setSubmitting(false);
-    }
-  }
 
   // LOADING SCREEN
   if (loading || !attempt) {
@@ -203,7 +207,7 @@ export default function AttemptPage({
           <div className="mt-6 text-center">
             <button
               onClick={() => router.push("/mock-test")}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg"
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               Start New Test
             </button>
@@ -288,7 +292,7 @@ export default function AttemptPage({
               <button
                 onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
                 disabled={currentIndex === 0}
-                className="px-6 py-2 bg-gray-300 rounded disabled:opacity-50"
+                className="px-6 py-2 bg-gray-300 rounded disabled:opacity-50 hover:bg-gray-400 transition-colors"
               >
                 Previous
               </button>
@@ -296,15 +300,15 @@ export default function AttemptPage({
               {currentIndex === questions.length - 1 ? (
                 <button
                   onClick={() => handleSubmit(false)}
-                  className="px-6 py-2 bg-green-600 text-white rounded"
+                  className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors disabled:opacity-50"
                   disabled={submitting}
                 >
-                  Submit Test
+                  {submitting ? "Submitting..." : "Submit Test"}
                 </button>
               ) : (
                 <button
                   onClick={() => setCurrentIndex((i) => i + 1)}
-                  className="px-6 py-2 bg-blue-600 text-white rounded"
+                  className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
                 >
                   Next
                 </button>
@@ -323,9 +327,9 @@ export default function AttemptPage({
                 <button
                   key={x.responseId}
                   onClick={() => setCurrentIndex(i)}
-                  className={`w-8 h-8 rounded text-xs font-semibold
+                  className={`w-8 h-8 rounded text-xs font-semibold transition-colors
                     ${i === currentIndex ? "ring-2 ring-blue-600" : ""}
-                    ${x.userAnswer ? "bg-green-500 text-white" : "bg-gray-300"}
+                    ${x.userAnswer ? "bg-green-500 text-white hover:bg-green-600" : "bg-gray-300 hover:bg-gray-400"}
                   `}
                 >
                   {i + 1}
@@ -343,8 +347,7 @@ export default function AttemptPage({
             </div>
           </div>
         </aside>
-      </div> {/* CLOSE .flex */}
-
-    </div> /* CLOSE page wrapper */
+      </div>
+    </div>
   );
 }
