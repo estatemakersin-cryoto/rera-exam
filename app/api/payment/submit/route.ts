@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import * as XLSX from "xlsx";
+
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+async function requireUser() {
+  const session = await getSession();
+  if (!session) throw new Error("Auth required");
+  return session;
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const session = await requireUser();
 
 export async function POST(req: NextRequest) {
   try {

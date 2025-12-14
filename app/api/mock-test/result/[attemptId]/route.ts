@@ -1,5 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";   // ✅ FIXED
+import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/auth";
+import * as XLSX from "xlsx";
+
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+async function requireUser() {
+  const session = await getSession();
+  if (!session) throw new Error("Auth required");
+  return session;
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    // Get session
+    const session = await getSession();
+    
+    if (!session) {
+      return NextResponse.json(
+        { error: "Not authenticated. Please login." },
+        { status: 401 }
+      );
+    }
+
+    // ... Add the rest of your POST logic here ...
+    // (whatever the POST function is supposed to do)
+
+  } catch (err: any) {
+    console.error("POST Error:", err);
+    return NextResponse.json(
+      { error: "Failed to process request" },
+      { status: 500 }
+    );
+  }
+}
 
 export async function GET(
   request: NextRequest,
@@ -26,7 +61,7 @@ export async function GET(
       );
     }
 
-    const questions = attempt.responses.map((r: any) => ({  // ✅ FIXED
+    const questions = attempt.responses.map((r: any) => ({
       responseId: r.id,
       questionId: r.question.id,
       questionEn: r.question.questionEn,
