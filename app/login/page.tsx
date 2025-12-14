@@ -42,8 +42,8 @@ export default function LoginPage() {
         return;
       }
 
-      // Redirect dashboard
-      window.location.href = data.redirect;
+      // ✅ Fixed: Redirect to mock-test page
+      window.location.href = "/mock-test";
 
     } catch (err) {
       setError("Something went wrong");
