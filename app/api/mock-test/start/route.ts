@@ -3,8 +3,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(request: NextRequest) {
   try {
-    const { rollNo } = await request.json();
-    if (!rollNo) return NextResponse.json({ error: "Roll number required" }, { status: 400 });
+    // Removed rollNo requirement since it's not used
 
     const [easy, moderate] = await Promise.all([
       prisma.question.findMany({ where: { difficulty: "EASY" }, take: 40 }),
@@ -27,6 +26,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ attemptId: attempt.id });
   } catch (error) {
-    return NextResponse.json({ error: "Failed" }, { status: 500 });
+    console.error("Mock test start error:", error);
+    return NextResponse.json({ error: "Failed to start test" }, { status: 500 });
   }
 }
