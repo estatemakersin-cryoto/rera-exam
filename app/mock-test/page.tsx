@@ -12,7 +12,7 @@ export default function MockTestEntryPage() {
   const handleStart = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!rollNo) {
-      alert("Please enter any roll number to continue");
+      alert("Please enter registration number to continue");
       return;
     }
 
@@ -21,7 +21,7 @@ export default function MockTestEntryPage() {
       const res = await fetch("/api/mock-test/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rollNo }), // No password needed for mock test
+        body: JSON.stringify({ rollNo }),
       });
 
       if (!res.ok) {
@@ -30,8 +30,6 @@ export default function MockTestEntryPage() {
       }
       
       const data = await res.json();
-      
-      // ✅ FIX: Change this line
       router.push(`/mock-test/attempt/${data.attemptId}`);
       
     } catch (err: any) {
