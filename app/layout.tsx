@@ -1,3 +1,5 @@
+"use client";
+
 import "./globals.css";
 import { LanguageProvider } from "@/app/providers/LanguageProvider";
 import type { Metadata } from "next";
