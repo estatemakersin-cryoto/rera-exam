@@ -1,0 +1,21 @@
+{
+  "rewrites": [
+    {
+      "source": "/attempt/:attemptId",
+      "destination": "/attempt/[attemptId]"
+    }
+  ],
+  "cleanUrls": true
+}
+```
+
+**2. Next.js Routing on Vercel**
+
+If using Next.js App Router, ensure you have:
+```
+/app/attempt/[attemptId]/page.js
+```
+
+Or for Pages Router:
+```
+/pages/attempt/[attemptId].js

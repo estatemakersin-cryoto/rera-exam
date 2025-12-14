@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
         responses: {
           include: { question: true },
         },
-        user: true, // ⚡ Optional user load
+        user: true,
       },
     });
 
@@ -34,7 +34,11 @@ export async function POST(req: NextRequest) {
 
     if (attempt.status === "COMPLETED") {
       return NextResponse.json(
-        { error: "Already submitted" },
+        { 
+          error: "Already submitted",
+          attemptId: attemptId,
+          redirectUrl: `/attempt/${attemptId}`
+        },
         { status: 400 }
       );
     }
@@ -65,9 +69,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // ---------------------------------------------------------
     // OPTIONAL USER UPDATE (only if userId exists)
-    // ---------------------------------------------------------
     if (attempt.userId) {
       await prisma.user.update({
         where: { id: attempt.userId },
@@ -78,7 +80,15 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    return NextResponse.json({ success: true });
+    // ✅ RETURN SUCCESS WITH ATTEMPT DATA
+    return NextResponse.json({ 
+      success: true,
+      attemptId: attemptId,
+      redirectUrl: `/attempt/${attemptId}`,
+      score: correct,
+      totalQuestions: attempt.responses.length,
+      percentage: Math.round((correct / attempt.responses.length) * 100)
+    });
 
   } catch (error) {
     console.error("Submit Error:", error);
