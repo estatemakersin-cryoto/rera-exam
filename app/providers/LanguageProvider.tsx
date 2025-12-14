@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
 type Language = "en" | "mr";
 type LangContextType = {
@@ -10,30 +10,25 @@ type LangContextType = {
 
 const LanguageContext = createContext<LangContextType | null>(null);
 
-export function LanguageProvider({ children }: { children: React.ReactNode }) {
+export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguage] = useState<Language>("en");
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
-    // Now we're safely on the client side
+    // Only run on client side
+    if (typeof window === "undefined") return;
+    
     const saved = localStorage.getItem("preferredLanguage");
     if (saved === "en" || saved === "mr") {
       setLanguage(saved);
     }
-  }, []);
+  }, []); // Empty dependency array - runs once on mount
 
   const changeLanguage = (lang: Language) => {
     setLanguage(lang);
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       localStorage.setItem("preferredLanguage", lang);
     }
   };
-
-  // Prevent hydration mismatch by not rendering until mounted
-  if (!mounted) {
-    return <>{children}</>;
-  }
 
   return (
     <LanguageContext.Provider value={{ language, setLanguage: changeLanguage }}>

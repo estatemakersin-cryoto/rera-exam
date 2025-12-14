@@ -1,20 +1,15 @@
 "use client";
 
-import { use, useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, useCallback } from "react";
+import { useRouter, useParams } from "next/navigation";
 import LanguageToggle from "@/components/LanguageToggle";
 import { useLanguage } from "@/app/hooks/useLanguage";
 
-// ------------------------------
-// Types
-// ------------------------------
 interface Question {
   responseId: string;
   questionId: number;
-
   questionEn: string;
   questionMr: string | null;
-
   optionAEn: string;
   optionAMr: string | null;
   optionBEn: string;
@@ -23,7 +18,6 @@ interface Question {
   optionCMr: string | null;
   optionDEn: string;
   optionDMr: string | null;
-
   userAnswer: string | null;
   correctAnswer: string;
   isCorrect?: boolean;
@@ -34,22 +28,14 @@ interface AttemptData {
   startTime: string;
   totalQuestions: number;
   testNumber: number;
-
   status?: string;
   score?: number;
   correctAnswers?: number;
 }
 
-// -------------------------------------------------------------
-// MAIN PAGE
-// -------------------------------------------------------------
-export default function AttemptPage({
-  params,
-}: {
-  params: Promise<{ attemptId: string }>;
-}) {
-  const { attemptId } = use(params);
-
+export default function AttemptPage() {
+  const params = useParams();
+  const attemptId = params.attemptId as string;
   const router = useRouter();
   const { language, setLanguage } = useLanguage();
 
@@ -57,10 +43,10 @@ export default function AttemptPage({
   const [attempt, setAttempt] = useState<AttemptData | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [timer, setTimer] = useState(3600); // 1 hour
+  const [timer, setTimer] = useState(3600);
   const [submitting, setSubmitting] = useState(false);
 
-  // SUBMIT TEST - useCallback to prevent dependency issues
+  // SUBMIT TEST
   const handleSubmit = useCallback(async (auto = false) => {
     if (!auto) {
       const ok = confirm("Submit test? You cannot change answers later.");
@@ -87,7 +73,7 @@ export default function AttemptPage({
     }
   }, [attemptId, router]);
 
-  // LOAD ATTEMPT + QUESTIONS
+  // LOAD ATTEMPT + QUESTIONS (runs ONCE)
   useEffect(() => {
     let active = true;
 
@@ -116,15 +102,15 @@ export default function AttemptPage({
     };
 
     load();
+    
     return () => {
       active = false;
     };
-  }, [attemptId, router]);
+  }, [attemptId, router]); // ⚠️ Only attemptId and router
 
-  // TIMER
+  // TIMER (separate effect)
   useEffect(() => {
     if (!attempt || attempt.status === "COMPLETED") return;
-
     if (timer <= 0) {
       handleSubmit(true);
       return;
@@ -166,7 +152,7 @@ export default function AttemptPage({
     );
   }
 
-  // -------------------- RESULT SCREEN ----------------------
+  // RESULT SCREEN
   if (attempt.status === "COMPLETED") {
     return (
       <div className="min-h-screen bg-gray-100 p-6">
@@ -217,7 +203,7 @@ export default function AttemptPage({
     );
   }
 
-  // -------------------- TEST UI --------------------------
+  // TEST UI
   const q = questions[currentIndex];
 
   type OptionKeyEn = "optionAEn" | "optionBEn" | "optionCEn" | "optionDEn";

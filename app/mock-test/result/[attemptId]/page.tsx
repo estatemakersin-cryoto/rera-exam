@@ -1,9 +1,8 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useParams } from "next/navigation";
 import { useLanguage } from "@/app/hooks/useLanguage";
-import LanguageToggle from "@/components/LanguageToggle";
 
 // ------------------------------
 // Types matching Prisma schema
@@ -42,15 +41,13 @@ interface ResultData {
   questions: Question[];
 }
 
-export default function ResultPage({
-  params,
-}: {
-  params: Promise<{ attemptId: string }>;
-}) {
-  const { attemptId } = use(params);
-
+export default function ResultPage() {
+  const params = useParams();
+  const attemptId = params.attemptId as string;
+  
   const router = useRouter();
   const { language, setLanguage } = useLanguage();
+
 
   const [loading, setLoading] = useState(true);
   const [result, setResult] = useState<ResultData | null>(null);
