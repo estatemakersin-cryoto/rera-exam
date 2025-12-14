@@ -2,9 +2,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export async function POST(request: NextRequest) {
+export async function POST(Request: NextRequest) {
   try {
-    const { responseId, answer } = await request.json();
+    const { responseId, answer } = await Request.json();
 
     if (!responseId) {
       return NextResponse.json(

@@ -1,4 +1,3 @@
-// app/api/mock-test/save-answer/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
@@ -7,7 +6,7 @@ export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
   try {
-    const { responseId, answer } = await request.json();
+    const { responseId, answer } = await req.json();
 
     if (!responseId) {
       return NextResponse.json(
