@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import * as XLSX from "xlsx";
 
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 async function requireUser() {
   const session = await getSession();
   if (!session) throw new Error("Auth required");

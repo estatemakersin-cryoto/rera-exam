@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { signToken } from "@/lib/auth";
 
+export const dynamic = 'force-dynamic';
 export async function POST(req: Request) {
   try {
     const { fullName, email, password, mobile } = await req.json();

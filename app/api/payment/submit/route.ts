@@ -14,10 +14,6 @@ async function requireUser() {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await requireUser();
-
-export async function POST(req: NextRequest) {
-  try {
     // Get session
     const session = await getSession();
     

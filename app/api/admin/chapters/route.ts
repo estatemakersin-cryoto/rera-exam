@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 
-// Add this line to force dynamic rendering
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function GET() {
   try {
@@ -11,6 +11,11 @@ export async function GET() {
 
     const chapters = await prisma.chapter.findMany({
       orderBy: { chapterNumber: "asc" },
+      include: {
+        _count: {
+          select: { questions: true }
+        }
+      }
     });
 
     return NextResponse.json({ chapters });
