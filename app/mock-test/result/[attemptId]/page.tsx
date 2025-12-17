@@ -48,7 +48,6 @@ export default function ResultPage() {
   const router = useRouter();
   const { language, setLanguage } = useLanguage();
 
-
   const [loading, setLoading] = useState(true);
   const [result, setResult] = useState<ResultData | null>(null);
 
