@@ -1,6 +1,6 @@
 'use client';
 
-import { useLanguage } from "@/app/hooks/useLanguage";
+import { useLanguage } from "@/app/providers/LanguageProvider";
 import LanguageToggle from "@/components/LanguageToggle";
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
