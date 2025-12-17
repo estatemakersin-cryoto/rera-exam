@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { useLanguage } from "@/app/hooks/useLanguage";
+import { useLanguage } from "@/app/providers/LanguageProvider";
 
 // ------------------------------
 // Types matching Prisma schema

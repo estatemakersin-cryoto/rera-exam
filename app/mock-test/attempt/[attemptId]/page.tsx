@@ -2,10 +2,9 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { useLanguage } from "@/app/providers/LanguageProvider";
 import LanguageToggle from "@/components/LanguageToggle";
-import { useLanguage } from "@/app/hooks/useLanguage";
 import { notFound } from "next/navigation";
-
 
 interface Question {
   responseId: string;
@@ -23,6 +22,7 @@ interface Question {
   userAnswer: string | null;
   correctAnswer: string;
   isCorrect?: boolean;
+  markedForReview?: boolean;
 }
 
 interface AttemptData {
@@ -90,7 +90,7 @@ export default function AttemptPage() {
         if (!active) return;
 
         setAttempt(data.attempt);
-        setQuestions(data.questions);
+        setQuestions(data.questions.map((q: Question) => ({ ...q, markedForReview: false })));
 
         if (data.attempt.status !== "COMPLETED") {
           setTimer(3600);
@@ -108,7 +108,7 @@ export default function AttemptPage() {
     return () => {
       active = false;
     };
-  }, [attemptId, router]); // ⚠️ Only attemptId and router
+  }, [attemptId, router]);
 
   // TIMER (separate effect)
   useEffect(() => {
@@ -145,6 +145,17 @@ export default function AttemptPage() {
     }
   };
 
+  // TOGGLE MARK FOR REVIEW
+  const toggleMarkForReview = (responseId: string) => {
+    setQuestions((prev) => {
+      const updated = prev.map((q) =>
+        q.responseId === responseId ? { ...q, markedForReview: !q.markedForReview } : q
+      );
+      console.log('Questions after toggle:', updated.find(q => q.responseId === responseId));
+      return updated;
+    });
+  };
+
   // LOADING SCREEN
   if (loading || !attempt) {
     return (
@@ -176,7 +187,7 @@ export default function AttemptPage() {
           {questions.map((q, i) => (
             <div key={q.responseId} className="p-4 border rounded mb-3">
               <p className="font-semibold">
-                {i + 1}. {q.questionEn}
+                {i + 1}. {language === "en" ? q.questionEn : q.questionMr || q.questionEn}
               </p>
 
               <p>
@@ -210,6 +221,12 @@ export default function AttemptPage() {
 
   type OptionKeyEn = "optionAEn" | "optionBEn" | "optionCEn" | "optionDEn";
   type OptionKeyMr = "optionAMr" | "optionBMr" | "optionCMr" | "optionDMr";
+
+  // Calculate stats
+  const answeredCount = questions.filter((x) => x.userAnswer).length;
+  const unansweredCount = questions.filter((x) => !x.userAnswer && !x.markedForReview).length;
+  const reviewCount = questions.filter((x) => x.markedForReview && !x.userAnswer).length;
+  const answeredReviewCount = questions.filter((x) => x.userAnswer && x.markedForReview).length;
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-100">
@@ -275,14 +292,25 @@ export default function AttemptPage() {
               })}
             </div>
 
-            {/* NAVIGATION */}
-            <div className="flex justify-between mt-6">
+            {/* NAVIGATION & MARK FOR REVIEW */}
+            <div className="flex justify-between items-center mt-6">
               <button
                 onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
                 disabled={currentIndex === 0}
                 className="px-6 py-2 bg-gray-300 rounded disabled:opacity-50 hover:bg-gray-400 transition-colors"
               >
                 Previous
+              </button>
+
+              <button
+                onClick={() => toggleMarkForReview(q.responseId)}
+                className={`px-6 py-2 rounded transition-colors ${
+                  q.markedForReview
+                    ? "bg-purple-600 text-white hover:bg-purple-700"
+                    : "bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300"
+                }`}
+              >
+                {q.markedForReview ? "✓ Marked for Review" : "Mark for Review"}
               </button>
 
               {currentIndex === questions.length - 1 ? (
@@ -310,27 +338,63 @@ export default function AttemptPage() {
           <div className="bg-white p-4 rounded-lg shadow sticky top-4">
             <h3 className="font-bold mb-3">Question Palette</h3>
 
-            <div className="grid grid-cols-10 gap-2">
-              {questions.map((x, i) => (
-                <button
-                  key={x.responseId}
-                  onClick={() => setCurrentIndex(i)}
-                  className={`w-8 h-8 rounded text-xs font-semibold transition-colors
-                    ${i === currentIndex ? "ring-2 ring-blue-600" : ""}
-                    ${x.userAnswer ? "bg-green-500 text-white hover:bg-green-600" : "bg-gray-300 hover:bg-gray-400"}
-                  `}
-                >
-                  {i + 1}
-                </button>
-              ))}
+            <div className="grid grid-cols-10 gap-2 mb-4">
+              {questions.map((x, i) => {
+                let bgColor = "bg-gray-300 hover:bg-gray-400"; // Unanswered
+                
+                if (x.userAnswer && x.markedForReview) {
+                  bgColor = "bg-orange-500 text-white hover:bg-orange-600"; // Answered + Review
+                } else if (x.userAnswer) {
+                  bgColor = "bg-green-500 text-white hover:bg-green-600"; // Answered
+                } else if (x.markedForReview) {
+                  bgColor = "bg-purple-500 text-white hover:bg-purple-600"; // Marked for Review
+                }
+
+                return (
+                  <button
+                    key={x.responseId}
+                    onClick={() => setCurrentIndex(i)}
+                    className={`w-8 h-8 rounded text-xs font-semibold transition-colors
+                      ${i === currentIndex ? "ring-2 ring-blue-600" : ""}
+                      ${bgColor}
+                    `}
+                  >
+                    {i + 1}
+                  </button>
+                );
+              })}
             </div>
 
-            <div className="mt-4 text-sm">
+            {/* Legend */}
+            <div className="text-xs space-y-2 mb-4 border-t pt-3">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-green-500 rounded"></div>
+                <span>Answered ({answeredCount - answeredReviewCount})</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-gray-300 rounded"></div>
+                <span>Unanswered ({unansweredCount})</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-purple-500 rounded"></div>
+                <span>Review ({reviewCount})</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-orange-500 rounded"></div>
+                <span>Answered + Review ({answeredReviewCount})</span>
+              </div>
+            </div>
+
+            {/* Stats */}
+            <div className="text-sm border-t pt-3">
               <p>
-                <strong>Answered:</strong> {questions.filter((x) => x.userAnswer).length}
+                <strong>Answered:</strong> {answeredCount}
               </p>
               <p>
-                <strong>Unanswered:</strong> {questions.filter((x) => !x.userAnswer).length}
+                <strong>Unanswered:</strong> {unansweredCount}
+              </p>
+              <p>
+                <strong>Marked for Review:</strong> {reviewCount + answeredReviewCount}
               </p>
             </div>
           </div>

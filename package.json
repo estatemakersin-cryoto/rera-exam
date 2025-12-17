@@ -7,7 +7,7 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
-    "db:setup": "node scripts/setup-db.js",
+    "db:setup": "node scripts/setup-db.mjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {

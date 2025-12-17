@@ -8,7 +8,12 @@ export const metadata: Metadata = {
   description: "Mock Test, Revision & Training System for MahaRERA Agents by EstateMakers",
   keywords: "MahaRERA, Real Estate Agent, Exam, Mock Test, Revision, EstateMakers",
   authors: [{ name: "EstateMakers" }],
-  viewport: "width=device-width, initial-scale=1",
+};
+
+// Separate viewport export
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
   themeColor: "#4F46E5",
 };
 

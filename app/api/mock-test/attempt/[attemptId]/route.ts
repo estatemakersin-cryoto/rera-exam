@@ -127,7 +127,7 @@ export async function GET(
           startTime: attempt.startTime.toISOString(),
           totalQuestions: attempt.totalQuestions,
           testNumber: (attempt.user?.testsCompleted || 0) + 1,
-          status: attempt.status, // ✅ ADDED
+          status: attempt.status, // ✅ CRITICAL: status field must be included
         },
         questions,
       });
@@ -164,7 +164,7 @@ export async function GET(
           startTime: attempt.startTime.toISOString(),
           endTime: attempt.endTime?.toISOString(),
           testNumber: (attempt.user?.testsCompleted || 0) + 1,
-          status: attempt.status, // ✅ ADDED
+          status: attempt.status, // ✅ CRITICAL: status field must be included
         },
         questions,
       });

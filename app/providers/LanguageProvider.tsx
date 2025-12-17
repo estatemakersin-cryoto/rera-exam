@@ -12,16 +12,17 @@ const LanguageContext = createContext<LangContextType | null>(null);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguage] = useState<Language>("en");
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    // Only run on client side
-    if (typeof window === "undefined") return;
-    
-    const saved = localStorage.getItem("preferredLanguage");
-    if (saved === "en" || saved === "mr") {
-      setLanguage(saved);
+    setMounted(true);
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("preferredLanguage");
+      if (saved === "en" || saved === "mr") {
+        setLanguage(saved);
+      }
     }
-  }, []); // Empty dependency array - runs once on mount
+  }, []);
 
   const changeLanguage = (lang: Language) => {
     setLanguage(lang);
@@ -30,6 +31,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // ALWAYS provide the context, even before mounted
   return (
     <LanguageContext.Provider value={{ language, setLanguage: changeLanguage }}>
       {children}
@@ -37,8 +39,8 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function useLanguageContext() {
+export function useLanguage() {
   const ctx = useContext(LanguageContext);
-  if (!ctx) throw new Error("useLanguageContext must be used inside Provider");
+  if (!ctx) throw new Error("useLanguage must be used inside LanguageProvider");
   return ctx;
 }
