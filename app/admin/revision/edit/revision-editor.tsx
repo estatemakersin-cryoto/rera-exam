@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import ReactMarkdown from "react-markdown";
 
 interface Chapter {
   id: number;
@@ -36,6 +37,8 @@ export default function RevisionEditorPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [viewMode, setViewMode] = useState<"edit" | "preview">("edit");
+  const [showMarkdownGuide, setShowMarkdownGuide] = useState(false);
 
   // Auth check
   useEffect(() => {
@@ -354,21 +357,199 @@ export default function RevisionEditorPage() {
                 </div>
               )}
 
-              {/* JSON Editor */}
+              {/* JSON Editor with Tabs */}
               {selectedRevision && (
                 <div className="p-6">
-                  <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
-                    <p className="text-sm text-yellow-800">
-                      ✏️ <strong>Edit the JSON below</strong> and click "Update Revision" to save changes.
-                    </p>
+                  {/* Tab Navigation */}
+                  <div className="flex gap-2 mb-4 border-b">
+                    <button
+                      onClick={() => setViewMode("edit")}
+                      className={`px-4 py-2 font-medium transition ${
+                        viewMode === "edit"
+                          ? "border-b-2 border-green-600 text-green-600"
+                          : "text-gray-600 hover:text-gray-800"
+                      }`}
+                    >
+                      ✏️ Edit JSON
+                    </button>
+                    <button
+                      onClick={() => setViewMode("preview")}
+                      className={`px-4 py-2 font-medium transition ${
+                        viewMode === "preview"
+                          ? "border-b-2 border-blue-600 text-blue-600"
+                          : "text-gray-600 hover:text-gray-800"
+                      }`}
+                    >
+                      👁️ Preview Markdown
+                    </button>
+                    <button
+                      onClick={() => setShowMarkdownGuide(!showMarkdownGuide)}
+                      className="ml-auto px-4 py-2 text-sm bg-blue-50 text-blue-700 rounded hover:bg-blue-100"
+                    >
+                      📖 Markdown Guide
+                    </button>
                   </div>
-                  
-                  <textarea
-                    value={editedJson}
-                    onChange={(e) => setEditedJson(e.target.value)}
-                    className="w-full h-96 border border-gray-300 p-4 rounded-lg font-mono text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 resize-y"
-                    spellCheck={false}
-                  />
+
+                  {/* Markdown Guide */}
+                  {showMarkdownGuide && (
+                    <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+                      <h3 className="font-bold text-blue-900 mb-2">📖 Markdown Formatting Guide</h3>
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div>
+                          <p className="font-semibold text-blue-800 mb-1">Headings:</p>
+                          <code className="block bg-white p-2 rounded mb-2">
+                            # Main Heading<br/>
+                            ## Sub Heading<br/>
+                            ### Small Heading
+                          </code>
+                          
+                          <p className="font-semibold text-blue-800 mb-1">Text Formatting:</p>
+                          <code className="block bg-white p-2 rounded mb-2">
+                            **Bold text**<br/>
+                            *Italic text*<br/>
+                            ***Bold + Italic***
+                          </code>
+                        </div>
+                        
+                        <div>
+                          <p className="font-semibold text-blue-800 mb-1">Lists:</p>
+                          <code className="block bg-white p-2 rounded mb-2">
+                            - Bullet point 1<br/>
+                            - Bullet point 2<br/>
+                            <br/>
+                            1. Numbered item<br/>
+                            2. Second item
+                          </code>
+                          
+                          <p className="font-semibold text-blue-800 mb-1">Other:</p>
+                          <code className="block bg-white p-2 rounded">
+                            [Link text](url)<br/>
+                            ---  (horizontal line)<br/>
+                            &gt; Quote text
+                          </code>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Edit Mode */}
+                  {viewMode === "edit" && (
+                    <>
+                      <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                        <p className="text-sm text-yellow-800">
+                          ✏️ <strong>Edit the JSON below.</strong> Use Markdown formatting in contentEn/contentMr fields.
+                          Switch to Preview tab to see formatted output.
+                        </p>
+                      </div>
+                      
+                      <textarea
+                        value={editedJson}
+                        onChange={(e) => setEditedJson(e.target.value)}
+                        className="w-full h-96 border border-gray-300 p-4 rounded-lg font-mono text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 resize-y"
+                        spellCheck={false}
+                      />
+                    </>
+                  )}
+
+                  {/* Preview Mode */}
+                  {viewMode === "preview" && (
+                    <div className="space-y-6">
+                      <div className="p-4 bg-blue-50 border border-blue-200 rounded">
+                        <p className="text-sm text-blue-800">
+                          👁️ This is how your content will appear to users with Markdown formatting applied.
+                        </p>
+                      </div>
+
+                      {(() => {
+                        try {
+                          const parsed = JSON.parse(editedJson);
+                          return (
+                            <>
+                              {/* Title Preview */}
+                              <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 rounded-lg">
+                                <h2 className="text-2xl font-bold mb-2">{parsed.titleEn}</h2>
+                                <h3 className="text-lg opacity-90">{parsed.titleMr}</h3>
+                              </div>
+
+                              {/* English Content */}
+                              {parsed.contentEn && (
+                                <div className="bg-white border rounded-lg p-6">
+                                  <div className="flex items-center gap-2 mb-3">
+                                    <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-semibold rounded">
+                                      📖 English Content
+                                    </span>
+                                  </div>
+                                  <div className="prose max-w-none">
+                                    <ReactMarkdown>{parsed.contentEn}</ReactMarkdown>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Marathi Content */}
+                              {parsed.contentMr && (
+                                <div className="bg-white border rounded-lg p-6">
+                                  <div className="flex items-center gap-2 mb-3">
+                                    <span className="px-3 py-1 bg-orange-100 text-orange-800 text-sm font-semibold rounded">
+                                      📖 मराठी सामग्री
+                                    </span>
+                                  </div>
+                                  <div className="prose max-w-none">
+                                    <ReactMarkdown>{parsed.contentMr}</ReactMarkdown>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Image */}
+                              {parsed.imageUrl && (
+                                <div className="bg-white border rounded-lg p-6">
+                                  <p className="font-semibold mb-3">🖼️ Image:</p>
+                                  <img 
+                                    src={parsed.imageUrl} 
+                                    alt="Revision content" 
+                                    className="max-w-full h-auto rounded-lg shadow-md"
+                                  />
+                                </div>
+                              )}
+
+                              {/* Q&A Section */}
+                              {parsed.qaJson && Array.isArray(parsed.qaJson) && parsed.qaJson.length > 0 && (
+                                <div className="bg-white border rounded-lg p-6">
+                                  <h3 className="text-xl font-bold mb-4">💬 Q&A Section ({parsed.qaJson.length} questions)</h3>
+                                  <div className="space-y-3">
+                                    {parsed.qaJson.map((qa: any, index: number) => (
+                                      <details key={index} className="bg-gray-50 border rounded-lg">
+                                        <summary className="p-4 cursor-pointer hover:bg-gray-100 font-medium">
+                                          <span className="text-blue-600 font-bold">Q{index + 1}.</span> {qa.questionEn}
+                                        </summary>
+                                        <div className="p-4 bg-green-50 border-t">
+                                          <p className="text-sm text-gray-600 mb-2">{qa.questionMr}</p>
+                                          <div className="prose max-w-none">
+                                            <p><span className="text-green-600 font-bold">A:</span></p>
+                                            <ReactMarkdown>{qa.answerEn}</ReactMarkdown>
+                                          </div>
+                                          {qa.answerMr && (
+                                            <div className="mt-2 text-sm text-gray-600 prose max-w-none">
+                                              <ReactMarkdown>{qa.answerMr}</ReactMarkdown>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </details>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          );
+                        } catch (e) {
+                          return (
+                            <div className="p-6 bg-red-50 border border-red-200 rounded-lg text-red-700">
+                              ❌ Invalid JSON. Please fix syntax errors in Edit tab.
+                            </div>
+                          );
+                        }
+                      })()}
+                    </div>
+                  )}
                   
                   <div className="mt-4 flex gap-3">
                     <button
@@ -382,6 +563,7 @@ export default function RevisionEditorPage() {
                       onClick={() => {
                         if (selectedRevision) {
                           selectRevisionForEdit(selectedRevision);
+                          setViewMode("edit");
                         }
                       }}
                       className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
@@ -399,37 +581,10 @@ export default function RevisionEditorPage() {
 
                   <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded">
                     <p className="text-sm text-blue-800">
-                      💡 <strong>Tip:</strong> Use VS Code or an online JSON editor to format and validate your JSON before updating.
+                      💡 <strong>Tip:</strong> Use Markdown formatting for better readability. 
+                      Switch between Edit and Preview tabs to see your changes.
                     </p>
                   </div>
-
-                  {/* Preview Section */}
-                  <details className="mt-4 p-4 bg-gray-50 border rounded-lg">
-                    <summary className="cursor-pointer font-semibold text-gray-800">
-                      👁️ Preview Current Content
-                    </summary>
-                    <div className="mt-3 space-y-3">
-                      <div>
-                        <span className="font-semibold">Title (En):</span> {selectedRevision.titleEn}
-                      </div>
-                      <div>
-                        <span className="font-semibold">Title (Mr):</span> {selectedRevision.titleMr}
-                      </div>
-                      {selectedRevision.contentEn && (
-                        <div>
-                          <span className="font-semibold">Content (En):</span>
-                          <p className="text-sm text-gray-700 mt-1 whitespace-pre-wrap">
-                            {selectedRevision.contentEn.substring(0, 200)}...
-                          </p>
-                        </div>
-                      )}
-                      {selectedRevision.qaJson && Array.isArray(selectedRevision.qaJson) && (
-                        <div>
-                          <span className="font-semibold">Q&A:</span> {selectedRevision.qaJson.length} questions
-                        </div>
-                      )}
-                    </div>
-                  </details>
                 </div>
               )}
             </div>

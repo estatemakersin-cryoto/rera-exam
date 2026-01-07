@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { verifyPassword, signToken } from "@/lib/auth";
 
 export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
     const { mobile, password } = await req.json();
@@ -32,6 +33,7 @@ export async function POST(req: NextRequest) {
         mobile: true,
         passwordHash: true,
         isAdmin: true,
+        role: true,
         packagePurchased: true,
       }
     });
@@ -40,6 +42,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "Mobile number not registered" },
         { status: 404 }
+      );
+    }
+
+    // Check if password is set
+    if (!user.passwordHash) {
+      return NextResponse.json(
+        { error: "Password not set. Please contact support." },
+        { status: 401 }
       );
     }
 
@@ -53,28 +63,38 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ✅ Create JWT token with correct AuthPayload
+    // Create JWT token with correct AuthPayload
     const token = await signToken({
       userId: user.id,
       fullName: user.fullName,
       mobile: user.mobile,
       email: user.email,
       isAdmin: user.isAdmin,
+      role: user.role,
       packagePurchased: user.packagePurchased,
     });
 
-    // Set cookie
+    // Set cookie and return user data
     const response = NextResponse.json(
       {
         success: true,
         message: "Login successful",
+        user: {
+          id: user.id,
+          email: user.email,
+          fullName: user.fullName,
+          mobile: user.mobile,
+          isAdmin: user.isAdmin,
+          role: user.role,
+          packagePurchased: user.packagePurchased,
+        }
       },
       { status: 200 }
     );
 
     response.cookies.set("auth-token", token, {
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
       path: "/",
       maxAge: 60 * 60 * 24 * 7, // 7 days

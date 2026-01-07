@@ -18,7 +18,6 @@ export async function GET(req: NextRequest) {
             fullName: true,
             email: true,
             mobile: true,
-            registrationNo: true,
             packagePurchased: true,
             testsUnlocked: true,
             testsCompleted: true,

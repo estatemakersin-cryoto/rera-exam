@@ -34,7 +34,6 @@ export async function GET() {
         fullName: user.fullName,
         email: user.email,
         mobile: user.mobile,
-        registrationNo: user.registrationNo,
 
         packagePurchased: user.packagePurchased,
         packagePurchasedDate: user.packagePurchasedDate,

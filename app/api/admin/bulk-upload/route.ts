@@ -2,20 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import * as XLSX from "xlsx";
 
-// ✅ ADD THESE TWO LINES
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 /* ============================================
    SMART MCQ FORMAT CONVERTER
-   Converts various MCQ JSON formats to bilingual schema
 ============================================ */
 function smartConvertMCQ(item: any): any {
   let converted: any = {
     _wasConverted: false
   };
 
-  // Extract Chapter Number
   converted.chapterNumber = Number(
     item.chapterNumber ?? 
     item.chapter ?? 
@@ -25,7 +22,6 @@ function smartConvertMCQ(item: any): any {
     1
   );
 
-  // Extract Question (English & Marathi)
   if (typeof item.question === 'object' && item.question !== null) {
     converted.questionEn = String(item.question.en ?? item.question.english ?? item.question.eng ?? "");
     converted.questionMr = item.question.mr ?? item.question.marathi ?? item.question.mar ?? null;
@@ -35,12 +31,10 @@ function smartConvertMCQ(item: any): any {
     converted.questionMr = item.questionMr ?? item.questionMarathi ?? item.qMr ?? null;
   }
 
-  // Extract Options
   if (item.options && typeof item.options === 'object' && !Array.isArray(item.options)) {
     const opts = item.options;
     
     if (opts.A && typeof opts.A === 'object') {
-      // Nested bilingual options
       converted.optionAEn = String(opts.A.en ?? opts.A.english ?? opts.A);
       converted.optionAMr = opts.A.mr ?? opts.A.marathi ?? null;
       converted.optionBEn = String(opts.B?.en ?? opts.B?.english ?? opts.B ?? "");
@@ -51,7 +45,6 @@ function smartConvertMCQ(item: any): any {
       converted.optionDMr = opts.D?.mr ?? opts.D?.marathi ?? null;
       converted._wasConverted = true;
     } else {
-      // Simple object {A: "text", B: "text"}
       converted.optionAEn = String(opts.A ?? opts.a ?? "");
       converted.optionBEn = String(opts.B ?? opts.b ?? "");
       converted.optionCEn = String(opts.C ?? opts.c ?? "");
@@ -63,7 +56,6 @@ function smartConvertMCQ(item: any): any {
       converted._wasConverted = true;
     }
   } else if (Array.isArray(item.options)) {
-    // Array format
     converted.optionAEn = String(item.options[0] ?? "");
     converted.optionBEn = String(item.options[1] ?? "");
     converted.optionCEn = String(item.options[2] ?? "");
@@ -74,7 +66,6 @@ function smartConvertMCQ(item: any): any {
     converted.optionDMr = null;
     converted._wasConverted = true;
   } else {
-    // Individual fields
     converted.optionAEn = String(item.optionAEn ?? item.optionA ?? item.a ?? item.option1 ?? "");
     converted.optionAMr = item.optionAMr ?? item.optionAMarathi ?? null;
     converted.optionBEn = String(item.optionBEn ?? item.optionB ?? item.b ?? item.option2 ?? "");
@@ -85,7 +76,6 @@ function smartConvertMCQ(item: any): any {
     converted.optionDMr = item.optionDMr ?? item.optionDMarathi ?? null;
   }
 
-  // Extract Correct Answer
   const rawAnswer = String(item.correctAnswer ?? item.correct ?? item.answer ?? item.ans ?? item.key ?? "A").toUpperCase();
   if (rawAnswer === "1" || rawAnswer === "A") converted.correctAnswer = "A";
   else if (rawAnswer === "2" || rawAnswer === "B") converted.correctAnswer = "B";
@@ -93,7 +83,6 @@ function smartConvertMCQ(item: any): any {
   else if (rawAnswer === "4" || rawAnswer === "D") converted.correctAnswer = "D";
   else converted.correctAnswer = rawAnswer;
 
-  // Extract Difficulty
   const rawDifficulty = String(item.difficulty ?? item.level ?? item.difficultyLevel ?? "MODERATE").toUpperCase();
   if (rawDifficulty === "EASY" || rawDifficulty === "1") {
     converted.difficulty = "EASY";
@@ -103,7 +92,6 @@ function smartConvertMCQ(item: any): any {
     converted.difficulty = "MODERATE";
   }
 
-  // Extract Explanations
   if (typeof item.explanation === 'object' && item.explanation !== null) {
     converted.explanationEn = item.explanation.en ?? item.explanation.english ?? null;
     converted.explanationMr = item.explanation.mr ?? item.explanation.marathi ?? null;
@@ -118,10 +106,8 @@ function smartConvertMCQ(item: any): any {
 
 /* ============================================
    SMART REVISION FORMAT CONVERTER
-   Converts various JSON formats to required schema
 ============================================ */
 function smartConvertRevision(item: any): any {
-  // Extract chapter number from various possible fields
   const chapterNumber = Number(
     item.chapterNumber ?? 
     item.chapter ?? 
@@ -130,7 +116,6 @@ function smartConvertRevision(item: any): any {
     item.chapterId
   );
 
-  // Extract titles with fallbacks
   let titleEn = 
     item.titleEn ?? 
     item.title?.en ?? 
@@ -145,9 +130,8 @@ function smartConvertRevision(item: any): any {
     item.title?.mr ?? 
     item.titleMarathi ??
     item.topicMr ??
-    titleEn; // Fallback to English if Marathi missing
+    titleEn;
 
-  // Extract content with fallbacks
   let contentEn = 
     item.contentEn ?? 
     item.content?.en ?? 
@@ -163,7 +147,6 @@ function smartConvertRevision(item: any): any {
     item.notesMarathi ??
     null;
 
-  // Extract Q&A with fallbacks
   let qaJson = 
     item.qaJson ?? 
     item.questions ?? 
@@ -172,7 +155,6 @@ function smartConvertRevision(item: any): any {
     item.questionsAndAnswers ??
     [];
 
-  // Normalize Q&A format
   if (Array.isArray(qaJson)) {
     qaJson = qaJson.map((q: any) => ({
       questionEn: q.questionEn ?? q.question?.en ?? q.question ?? q.q ?? "",
@@ -182,9 +164,8 @@ function smartConvertRevision(item: any): any {
     }));
   }
 
-  // Extract other fields
   const imageUrl = item.imageUrl ?? item.image ?? item.img ?? null;
-  const order = item.order ?? item.orderIndex ?? item.sequence ?? 0;
+  const order = Number(item.order ?? item.orderIndex ?? item.sequence ?? 0);
 
   return {
     chapterNumber,
@@ -195,110 +176,8 @@ function smartConvertRevision(item: any): any {
     imageUrl,
     qaJson,
     order,
-    _wasConverted: true // Flag to track conversion
+    _wasConverted: true
   };
-}
-
-/* ============================================
-   CONTENT ENHANCEMENT HELPERS
-============================================ */
-
-/**
- * Extract bullet points from content
- */
-function extractBulletPoints(content: string | null): string[] {
-  if (!content) return [];
-  
-  const bullets: string[] = [];
-  
-  // Split by common bullet indicators
-  const lines = content.split(/\n|\\n/);
-  
-  for (const line of lines) {
-    const trimmed = line.trim();
-    
-    // Check for existing bullet points
-    if (trimmed.match(/^[-•*●○▪▫]\s+/) || trimmed.match(/^\d+\.\s+/)) {
-      bullets.push(trimmed.replace(/^[-•*●○▪▫]\s+/, '').replace(/^\d+\.\s+/, ''));
-    }
-    // Extract sentences that look like key points (short, declarative)
-    else if (trimmed.length > 10 && trimmed.length < 150 && trimmed.endsWith('.')) {
-      bullets.push(trimmed);
-    }
-  }
-  
-  return bullets.slice(0, 10); // Limit to 10 points
-}
-
-/**
- * Generate additional Q&A from content
- * (Placeholder - in production, use AI API)
- */
-function generateAdditionalQA(content: string | null, existingQA: any[]): any[] {
-  if (!content || existingQA.length >= 5) return [];
-  
-  const additionalQA: any[] = [];
-  
-  // Simple keyword extraction for demo
-  // In production, use Claude/GPT API to generate real questions
-  
-  const keywords = extractKeywords(content);
-  
-  keywords.slice(0, 3).forEach((keyword, index) => {
-    additionalQA.push({
-      questionEn: `What is ${keyword}?`,
-      questionMr: `${keyword} म्हणजे काय?`,
-      answerEn: `${keyword} is explained in the content above.`,
-      answerMr: `${keyword} वरील सामग्रीमध्ये स्पष्ट केले आहे.`,
-      _autoGenerated: true
-    });
-  });
-  
-  return additionalQA;
-}
-
-/**
- * Extract keywords from content
- */
-function extractKeywords(content: string): string[] {
-  if (!content) return [];
-  
-  // Remove common words
-  const commonWords = new Set(['the', 'a', 'an', 'is', 'are', 'was', 'were', 'in', 'on', 'at', 'to', 'for', 'of', 'and', 'or', 'but']);
-  
-  const words = content
-    .toLowerCase()
-    .replace(/[^a-z\s]/g, ' ')
-    .split(/\s+/)
-    .filter(w => w.length > 4 && !commonWords.has(w));
-  
-  // Count frequency
-  const freq = new Map<string, number>();
-  words.forEach(w => freq.set(w, (freq.get(w) || 0) + 1));
-  
-  // Sort by frequency and return top keywords
-  return Array.from(freq.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
-    .map(([word]) => word.charAt(0).toUpperCase() + word.slice(1));
-}
-
-/**
- * Enhance content with bullet points
- */
-function enhanceContent(content: string | null): string | null {
-  if (!content) return null;
-  
-  const bullets = extractBulletPoints(content);
-  
-  if (bullets.length === 0) return content;
-  
-  // Add bullet points section if not already present
-  if (!content.includes('Key Points') && !content.includes('मुख्य मुद्दे')) {
-    return content + '\n\n# Key Points\n' + bullets.map(b => `• ${b}`).join('\n');
-  }
-  
-  return content;
 }
 
 /* ============================================
@@ -310,29 +189,40 @@ export async function POST(req: NextRequest) {
     
     let type: string | null = null;
     let resetIds = false;
-    let enhanceContent_flag = false;
     let buffer: ArrayBuffer | null = null;
     let items: any[] = [];
 
     // ============================================
-    // HANDLE JSON PASTE (application/json)
+    // HANDLE JSON PASTE
     // ============================================
     if (contentType?.includes("application/json")) {
       const body = await req.json();
-      items = Array.isArray(body.data) ? body.data : body.data ? [body.data] : [];
+      
+      // Handle both array and object with data property
+      if (Array.isArray(body)) {
+        items = body;
+      } else if (Array.isArray(body.data)) {
+        items = body.data;
+      } else if (body.data) {
+        items = [body.data];
+      } else {
+        return NextResponse.json(
+          { error: "Invalid JSON format. Expected array or object with 'data' property." },
+          { status: 400 }
+        );
+      }
+      
       type = body.type;
       resetIds = body.resetIds === "true" || body.resetIds === true;
-      enhanceContent_flag = body.enhanceContent === "true" || body.enhanceContent === true;
       
       console.log("📋 JSON Paste Upload:", { 
         type, 
         itemCount: items.length,
-        resetIds,
-        enhance: enhanceContent_flag 
+        resetIds
       });
     }
     // ============================================
-    // HANDLE FILE UPLOAD (multipart/form-data)
+    // HANDLE FILE UPLOAD
     // ============================================
     else if (contentType?.includes("multipart/form-data")) {
       const formData = await req.formData();
@@ -345,21 +235,18 @@ export async function POST(req: NextRequest) {
       buffer = await file.arrayBuffer();
       type = formData.get("type") as string | null;
       resetIds = formData.get("resetIds") === "true";
-      enhanceContent_flag = formData.get("enhanceContent") === "true";
       
       console.log("📁 File Upload:", { type, fileName: file.name, resetIds });
 
-      // Parse file based on type
+      // Parse file
       if (type === "mcq") {
-        // Excel file for MCQ
         const workbook = XLSX.read(buffer, { type: "array" });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         items = XLSX.utils.sheet_to_json<Record<string, any>>(sheet);
       } else {
-        // JSON file for revision/chapters
         try {
           const json = JSON.parse(Buffer.from(buffer).toString("utf-8"));
-          items = Array.isArray(json) ? json : json ? [json] : [];
+          items = Array.isArray(json) ? json : [json];
         } catch (parseError) {
           return NextResponse.json(
             { error: `Invalid JSON file: ${parseError instanceof Error ? parseError.message : 'Parse failed'}` },
@@ -374,9 +261,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Validate type
     if (!type) {
       return NextResponse.json({ error: "Upload type is required" }, { status: 400 });
     }
+
+    // Validate items array
+    if (!Array.isArray(items) || items.length === 0) {
+      return NextResponse.json(
+        { error: "No valid data found. Please check your file format." },
+        { status: 400 }
+      );
+    }
+
+    console.log(`📦 Processing ${items.length} items for type: ${type}`);
 
     // Load existing chapters
     const chapters = await prisma.chapter.findMany();
@@ -384,7 +282,7 @@ export async function POST(req: NextRequest) {
     chapters.forEach((ch) => chapterMap.set(ch.chapterNumber, ch.id));
 
     // =======================================
-    // MCQ UPLOAD (Excel OR JSON)
+    // MCQ UPLOAD
     // =======================================
     if (type === "mcq") {
       if (resetIds) {
@@ -392,6 +290,7 @@ export async function POST(req: NextRequest) {
         await prisma.$executeRawUnsafe(
           `ALTER SEQUENCE "Question_id_seq" RESTART WITH 1`
         );
+        console.log("✅ Reset all questions and IDs");
       }
 
       let inserted = 0;
@@ -399,268 +298,217 @@ export async function POST(req: NextRequest) {
       let converted = 0;
       const skippedDetails: any[] = [];
 
-      console.log("=== SMART MCQ UPLOAD ===");
-      console.log("Total items:", items.length);
+      console.log("=== MCQ UPLOAD START ===");
       console.log("Available chapters:", Array.from(chapterMap.keys()));
 
-      for (const rawItem of items) {
-        // 🔧 Smart Format Conversion
-        const item = smartConvertMCQ(rawItem);
+      for (let i = 0; i < items.length; i++) {
+        const rawItem = items[i];
         
-        if (item._wasConverted) {
-          converted++;
-          console.log(`✓ Converted MCQ: ${item.questionEn?.substring(0, 50)}...`);
-        }
-
-        const chapterNumberFromRow = item.chapterNumber
-          ? Number(item.chapterNumber)
-          : undefined;
-
-        const chapterId =
-          item.chapterId != null
-            ? Number(item.chapterId)
-            : chapterNumberFromRow != null
-            ? chapterMap.get(chapterNumberFromRow)
-            : undefined;
-
-        if (!chapterId) {
-          console.warn("❌ SKIPPED - Chapter not found:", item.questionEn?.substring(0, 50));
-          skipped++;
-          skippedDetails.push({
-            question: item.questionEn?.substring(0, 50) + "...",
-            chapterNumber: item.chapterNumber,
-            reason: "Chapter not found in database"
-          });
-          continue;
-        }
-
-        // Validate required fields
-        if (!item.questionEn || !item.optionAEn || !item.optionBEn || !item.correctAnswer) {
-          console.warn("❌ SKIPPED - Missing required fields");
-          skipped++;
-          skippedDetails.push({
-            question: item.questionEn || "Unknown",
-            reason: "Missing required fields (questionEn, optionAEn, optionBEn, correctAnswer)"
-          });
-          continue;
-        }
-
-        const rawDifficulty = String(item.difficulty || "MODERATE").toUpperCase();
-        const difficulty: "EASY" | "MODERATE" | "HARD" =
-          rawDifficulty === "EASY" || rawDifficulty === "HARD"
-            ? rawDifficulty
-            : "MODERATE";
-
-        // 🔍 DUPLICATE CHECK: Check if question already exists
-        const existingQuestion = await prisma.question.findFirst({
-          where: {
-            chapterId,
-            questionEn: String(item.questionEn || "")
+        try {
+          const item = smartConvertMCQ(rawItem);
+          
+          if (item._wasConverted) {
+            converted++;
           }
-        });
 
-        if (existingQuestion) {
-          console.warn(`⚠️ DUPLICATE - Question already exists: ${item.questionEn?.substring(0, 50)}...`);
+          // Validate chapter
+          const chapterId = chapterMap.get(item.chapterNumber);
+          if (!chapterId) {
+            skipped++;
+            skippedDetails.push({
+              row: i + 1,
+              question: item.questionEn?.substring(0, 50) + "...",
+              chapterNumber: item.chapterNumber,
+              reason: `Chapter ${item.chapterNumber} not found`
+            });
+            continue;
+          }
+
+          // Validate required fields
+          if (!item.questionEn || !item.optionAEn || !item.optionBEn || !item.correctAnswer) {
+            skipped++;
+            skippedDetails.push({
+              row: i + 1,
+              question: item.questionEn || "Unknown",
+              reason: "Missing required fields"
+            });
+            continue;
+          }
+
+          // Check for duplicates
+          const existingQuestion = await prisma.question.findFirst({
+            where: {
+              chapterId,
+              questionEn: item.questionEn
+            }
+          });
+
+          if (existingQuestion) {
+            skipped++;
+            skippedDetails.push({
+              row: i + 1,
+              question: item.questionEn.substring(0, 50) + "...",
+              reason: "Duplicate question"
+            });
+            continue;
+          }
+
+          // Insert question
+          await prisma.question.create({
+            data: {
+              chapterId,
+              questionEn: item.questionEn,
+              questionMr: item.questionMr,
+              optionAEn: String(item.optionAEn),
+              optionAMr: item.optionAMr ? String(item.optionAMr) : null,
+              optionBEn: String(item.optionBEn),
+              optionBMr: item.optionBMr ? String(item.optionBMr) : null,
+              optionCEn: String(item.optionCEn),
+              optionCMr: item.optionCMr ? String(item.optionCMr) : null,
+              optionDEn: String(item.optionDEn),
+              optionDMr: item.optionDMr ? String(item.optionDMr) : null,
+              correctAnswer: item.correctAnswer,
+              difficulty: item.difficulty,
+            },
+          });
+
+          inserted++;
+        } catch (error: any) {
+          console.error(`Error processing row ${i + 1}:`, error);
           skipped++;
           skippedDetails.push({
-            question: item.questionEn?.substring(0, 50) + "...",
-            reason: "Duplicate question (already exists in database)"
+            row: i + 1,
+            reason: error.message
           });
-          continue;
         }
-
-        await prisma.question.create({
-          data: {
-            chapterId,
-            questionEn: String(item.questionEn || ""),
-            questionMr: item.questionMr ? String(item.questionMr) : null,
-            
-            // Convert all options to strings (handles numeric values like 8, 10, 12)
-            optionAEn: String(item.optionAEn || item.optionA || ""),
-            optionAMr: item.optionAMr ? String(item.optionAMr) : null,
-            optionBEn: String(item.optionBEn || item.optionB || ""),
-            optionBMr: item.optionBMr ? String(item.optionBMr) : null,
-            optionCEn: String(item.optionCEn || item.optionC || ""),
-            optionCMr: item.optionCMr ? String(item.optionCMr) : null,
-            optionDEn: String(item.optionDEn || item.optionD || ""),
-            optionDMr: item.optionDMr ? String(item.optionDMr) : null,
-            
-            correctAnswer: String(item.correctAnswer || "").toUpperCase(),
-            difficulty,
-          },
-        });
-
-        inserted++;
       }
 
-      console.log("\n=== MCQ UPLOAD COMPLETE ===");
-      console.log(`Inserted: ${inserted}`);
-      console.log(`Converted: ${converted}`);
-      console.log(`Skipped: ${skipped}`);
-
       return NextResponse.json({
-        message: converted > 0 
-          ? `✅ MCQ upload completed!\n\nInserted: ${inserted} questions\nAuto-converted: ${converted} questions\nSkipped: ${skipped} questions`
-          : `✅ MCQ upload completed!\n\nInserted: ${inserted} questions\nSkipped: ${skipped} questions`,
+        message: `✅ MCQ upload completed!\n\nInserted: ${inserted}\nConverted: ${converted}\nSkipped: ${skipped}`,
         details: { 
           inserted, 
           converted,
-          skipped, 
-          availableChapters: Array.from(chapterMap.keys()),
-          skippedItems: skippedDetails.length > 0 ? skippedDetails : undefined
+          skipped,
+          skippedItems: skippedDetails.slice(0, 10)
         }
       });
     }
 
     // =======================================
-    // REVISION UPLOAD WITH SMART CONVERSION
+    // REVISION UPLOAD
     // =======================================
     if (type === "revision") {
-      if (!items.length) {
-        return NextResponse.json(
-          { error: "No items found in JSON file" },
-          { status: 400 }
-        );
-      }
-
       if (resetIds) {
         await prisma.revisionContent.deleteMany({});
         await prisma.$executeRawUnsafe(
           `ALTER SEQUENCE "RevisionContent_id_seq" RESTART WITH 1`
         );
+        console.log("✅ Reset all revision content and IDs");
       }
 
       let inserted = 0;
       let skipped = 0;
       let converted = 0;
-      let enhanced = 0;
       const skippedDetails: any[] = [];
-      const conversionLog: string[] = [];
 
-      console.log("=== SMART REVISION UPLOAD ===");
-      console.log("Total items:", items.length);
+      console.log("=== REVISION UPLOAD START ===");
       console.log("Available chapters:", Array.from(chapterMap.keys()));
 
-      for (const rawItem of items) {
-        // 🔧 STEP 1: Smart Format Conversion
-        const item = smartConvertRevision(rawItem);
+      for (let i = 0; i < items.length; i++) {
+        const rawItem = items[i];
         
-        if (item._wasConverted) {
-          converted++;
-          conversionLog.push(`Converted: ${item.titleEn}`);
-        }
-
-        // Validate chapter exists
-        if (!item.chapterNumber || isNaN(item.chapterNumber)) {
-          console.warn("❌ SKIPPED - Invalid chapterNumber:", item.titleEn);
-          skipped++;
-          skippedDetails.push({
-            title: item.titleEn,
-            reason: "Invalid or missing chapterNumber"
-          });
-          continue;
-        }
-
-        const chapterId = chapterMap.get(item.chapterNumber);
-
-        if (!chapterId) {
-          console.warn(`❌ SKIPPED - Chapter ${item.chapterNumber} not found`);
-          skipped++;
-          skippedDetails.push({
-            title: item.titleEn,
-            chapterNumber: item.chapterNumber,
-            reason: "Chapter not found in database"
-          });
-          continue;
-        }
-
-        // Validate required fields
-        if (!item.titleEn || !item.titleMr) {
-          console.warn("❌ SKIPPED - Missing titleEn or titleMr");
-          skipped++;
-          skippedDetails.push({
-            title: item.titleEn || "Unknown",
-            reason: "Missing required titleEn or titleMr"
-          });
-          continue;
-        }
-
-        // 🎨 STEP 2: Content Enhancement (if enabled)
-        let finalContentEn = item.contentEn;
-        let finalContentMr = item.contentMr;
-        let finalQaJson = item.qaJson || [];
-
-        if (enhanceContent_flag) {
-          // Enhance English content with bullet points
-          const enhancedEn = enhanceContent(item.contentEn);
-          if (enhancedEn !== item.contentEn) {
-            finalContentEn = enhancedEn;
-            enhanced++;
+        try {
+          const item = smartConvertRevision(rawItem);
+          
+          if (item._wasConverted) {
+            converted++;
           }
 
-          // Generate additional Q&As
-          const additionalQA = generateAdditionalQA(item.contentEn, finalQaJson);
-          if (additionalQA.length > 0) {
-            finalQaJson = [...finalQaJson, ...additionalQA];
-            enhanced++;
-            conversionLog.push(`Added ${additionalQA.length} auto-generated Q&As for: ${item.titleEn}`);
+          // Validate chapter
+          if (!item.chapterNumber || isNaN(item.chapterNumber)) {
+            skipped++;
+            skippedDetails.push({
+              row: i + 1,
+              title: item.titleEn,
+              reason: "Invalid chapterNumber"
+            });
+            continue;
           }
-        }
 
-        // 🔍 DUPLICATE CHECK: Check if revision content already exists
-        const existingRevision = await prisma.revisionContent.findFirst({
-          where: {
-            chapterId,
-            titleEn: item.titleEn,
-            order: item.order
+          const chapterId = chapterMap.get(item.chapterNumber);
+          if (!chapterId) {
+            skipped++;
+            skippedDetails.push({
+              row: i + 1,
+              title: item.titleEn,
+              chapterNumber: item.chapterNumber,
+              reason: `Chapter ${item.chapterNumber} not found`
+            });
+            continue;
           }
-        });
 
-        if (existingRevision) {
-          console.warn(`⚠️ DUPLICATE - Revision already exists: ${item.titleEn}`);
+          // Validate required fields
+          if (!item.titleEn || !item.titleMr) {
+            skipped++;
+            skippedDetails.push({
+              row: i + 1,
+              title: item.titleEn || "Unknown",
+              reason: "Missing titleEn or titleMr"
+            });
+            continue;
+          }
+
+          // Check for duplicates
+          const existingRevision = await prisma.revisionContent.findFirst({
+            where: {
+              chapterId,
+              titleEn: item.titleEn,
+              order: item.order
+            }
+          });
+
+          if (existingRevision) {
+            skipped++;
+            skippedDetails.push({
+              row: i + 1,
+              title: item.titleEn,
+              reason: "Duplicate revision"
+            });
+            continue;
+          }
+
+          // Insert revision
+          await prisma.revisionContent.create({
+            data: {
+              chapterId,
+              titleEn: item.titleEn,
+              titleMr: item.titleMr,
+              contentEn: item.contentEn,
+              contentMr: item.contentMr,
+              imageUrl: item.imageUrl,
+              qaJson: item.qaJson,
+              order: item.order,
+            },
+          });
+
+          inserted++;
+        } catch (error: any) {
+          console.error(`Error processing row ${i + 1}:`, error);
           skipped++;
           skippedDetails.push({
-            title: item.titleEn,
-            reason: "Duplicate revision (same chapter, title, and order already exists)"
+            row: i + 1,
+            reason: error.message
           });
-          continue;
         }
-
-        // 💾 STEP 3: Save to Database
-        console.log(`✓ Creating revision: ${item.titleEn} (Chapter ${item.chapterNumber})`);
-
-        await prisma.revisionContent.create({
-          data: {
-            chapterId,
-            titleEn: item.titleEn,
-            titleMr: item.titleMr,
-            contentEn: finalContentEn,
-            contentMr: finalContentMr,
-            imageUrl: item.imageUrl,
-            qaJson: finalQaJson,
-            order: item.order,
-          },
-        });
-
-        inserted++;
       }
 
-      console.log("\n=== UPLOAD COMPLETE ===");
-      console.log(`Inserted: ${inserted}`);
-      console.log(`Converted: ${converted}`);
-      console.log(`Enhanced: ${enhanced}`);
-      console.log(`Skipped: ${skipped}`);
-
       return NextResponse.json({
-        message: `✅ Revision upload completed!\n\nInserted: ${inserted} items\nAuto-converted: ${converted} items\nEnhanced: ${enhanced} items\nSkipped: ${skipped} items`,
+        message: `✅ Revision upload completed!\n\nInserted: ${inserted}\nConverted: ${converted}\nSkipped: ${skipped}`,
         details: {
           inserted,
           converted,
-          enhanced,
           skipped,
-          availableChapters: Array.from(chapterMap.keys()),
-          skippedItems: skippedDetails.length > 0 ? skippedDetails : undefined,
-          conversionLog: conversionLog.length > 0 ? conversionLog : undefined
+          skippedItems: skippedDetails.slice(0, 10)
         }
       });
     }
@@ -669,78 +517,91 @@ export async function POST(req: NextRequest) {
     // CHAPTER UPLOAD
     // =======================================
     if (type === "chapters") {
-      if (!items.length) {
-        return NextResponse.json(
-          { error: "No items found in chapters JSON" },
-          { status: 400 }
-        );
-      }
-
       if (resetIds) {
         await prisma.revisionContent.deleteMany({});
         await prisma.question.deleteMany({});
         await prisma.chapter.deleteMany({});
 
-        await prisma.$executeRawUnsafe(
-          `ALTER SEQUENCE "Chapter_id_seq" RESTART WITH 1`
-        );
-        await prisma.$executeRawUnsafe(
-          `ALTER SEQUENCE "RevisionContent_id_seq" RESTART WITH 1`
-        );
-        await prisma.$executeRawUnsafe(
-          `ALTER SEQUENCE "Question_id_seq" RESTART WITH 1`
-        );
+        await prisma.$executeRawUnsafe(`ALTER SEQUENCE "Chapter_id_seq" RESTART WITH 1`);
+        await prisma.$executeRawUnsafe(`ALTER SEQUENCE "RevisionContent_id_seq" RESTART WITH 1`);
+        await prisma.$executeRawUnsafe(`ALTER SEQUENCE "Question_id_seq" RESTART WITH 1`);
+        
+        console.log("✅ Reset all chapters, questions, and revision content");
       }
 
       let insertedOrUpdated = 0;
+      const errors: string[] = [];
 
-      for (const item of items) {
-        const chapterNumber = Number(item.chapterNumber ?? item.courseChapter);
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        
+        try {
+          // Support both formats: chapterNumber OR courseChapter
+          const chapterNumber = Number(item.chapterNumber ?? item.courseChapter);
 
-        if (!chapterNumber || isNaN(chapterNumber)) {
-          console.error("❌ Skipping chapter – invalid chapterNumber:", item);
-          continue;
+          if (!chapterNumber || isNaN(chapterNumber)) {
+            errors.push(`Row ${i + 1}: Invalid chapterNumber`);
+            continue;
+          }
+
+          // Smart field mapping for both formats
+          const titleEn = item.titleEn || item.courseTitleEn || "";
+          const titleMr = item.titleMr || item.courseTitleMr || null;
+          const actChapterNameEn = item.actChapterNameEn || item.actTitleEn || item.actChapter || null;
+          const actChapterNameMr = item.actChapterNameMr || item.actTitleMr || null;
+          
+          // Convert arrays to JSON string for storage
+          let sectionsData = item.sections || null;
+          if (Array.isArray(item.actSectionsReferenced)) {
+            sectionsData = JSON.stringify(item.actSectionsReferenced);
+          }
+
+          await prisma.chapter.upsert({
+            where: { chapterNumber },
+            create: {
+              chapterNumber,
+              titleEn,
+              titleMr,
+              actChapterNameEn,
+              actChapterNameMr,
+              sections: sectionsData,
+              descriptionEn: item.descriptionEn || null,
+              descriptionMr: item.descriptionMr || null,
+              mahareraEquivalentEn: item.mahareraEquivalentEn || null,
+              mahareraEquivalentMr: item.mahareraEquivalentMr || null,
+              orderIndex: item.orderIndex ?? chapterNumber,
+              isActive: item.isActive ?? true,
+              displayInApp: item.displayInApp ?? true,
+            },
+            update: {
+              titleEn,
+              titleMr,
+              actChapterNameEn,
+              actChapterNameMr,
+              sections: sectionsData,
+              descriptionEn: item.descriptionEn || null,
+              descriptionMr: item.descriptionMr || null,
+              mahareraEquivalentEn: item.mahareraEquivalentEn || null,
+              mahareraEquivalentMr: item.mahareraEquivalentMr || null,
+              orderIndex: item.orderIndex ?? chapterNumber,
+              isActive: item.isActive ?? true,
+              displayInApp: item.displayInApp ?? true,
+            },
+          });
+
+          insertedOrUpdated++;
+        } catch (error: any) {
+          console.error(`Error processing chapter row ${i + 1}:`, error);
+          errors.push(`Row ${i + 1}: ${error.message}`);
         }
-
-        await prisma.chapter.upsert({
-          where: { chapterNumber },
-          create: {
-            chapterNumber,
-            titleEn: item.titleEn || item.courseTitleEn || "",
-            titleMr: item.titleMr || item.courseTitleMr || null,
-            actChapterNameEn: item.actChapterNameEn || item.actTitleEn || null,
-            actChapterNameMr: item.actChapterNameMr || item.actTitleMr || null,
-            sections: item.sections || null,
-            descriptionEn: item.descriptionEn || null,
-            descriptionMr: item.descriptionMr || null,
-            mahareraEquivalentEn: item.mahareraEquivalentEn || null,
-            mahareraEquivalentMr: item.mahareraEquivalentMr || null,
-            orderIndex: item.orderIndex ?? null,
-            isActive: item.isActive ?? true,
-            displayInApp: item.displayInApp ?? true,
-          },
-          update: {
-            titleEn: item.titleEn || item.courseTitleEn || "",
-            titleMr: item.titleMr || item.courseTitleMr || null,
-            actChapterNameEn: item.actChapterNameEn || item.actTitleEn || null,
-            actChapterNameMr: item.actChapterNameMr || item.actTitleMr || null,
-            sections: item.sections || null,
-            descriptionEn: item.descriptionEn || null,
-            descriptionMr: item.descriptionMr || null,
-            mahareraEquivalentEn: item.mahareraEquivalentEn || null,
-            mahareraEquivalentMr: item.mahareraEquivalentMr || null,
-            orderIndex: item.orderIndex ?? null,
-            isActive: item.isActive ?? true,
-            displayInApp: item.displayInApp ?? true,
-          },
-        });
-
-        insertedOrUpdated++;
       }
 
       return NextResponse.json({
-        message: `Chapters upload complete. Inserted/Updated ${insertedOrUpdated} chapters.`,
-        details: { insertedOrUpdated, resetPerformed: resetIds }
+        message: `✅ Chapters upload complete!\n\nInserted/Updated: ${insertedOrUpdated}`,
+        details: { 
+          insertedOrUpdated, 
+          errors: errors.length > 0 ? errors.slice(0, 10) : undefined 
+        }
       });
     }
 

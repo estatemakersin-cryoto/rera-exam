@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { SignJWT, jwtVerify, JWTPayload } from "jose";
 import bcrypt from "bcryptjs";
+import { UserRole } from "@prisma/client";
 
 const SECRET = new TextEncoder().encode(process.env.JWT_SECRET!);
 
@@ -14,6 +15,7 @@ export interface AuthPayload {
   mobile?: string | null;
   email?: string | null;
   isAdmin: boolean;
+  role?: UserRole;  // NEW: User role for new auth system
   packagePurchased?: boolean | null;
 }
 
@@ -47,7 +49,7 @@ export async function signToken(payload: AuthPayload) {
 export async function verifyToken(token: string): Promise<AuthPayload | null> {
   try {
     const { payload } = await jwtVerify(token, SECRET);
-    return payload as unknown as AuthPayload; // 👈 Safe double-cast
+    return payload as unknown as AuthPayload;
   } catch {
     return null;
   }
@@ -79,4 +81,21 @@ export async function requireUser() {
     throw new Error("User not logged in");
   }
   return session;
+}
+
+// ============================================
+// ROLE HELPERS (NEW)
+// ============================================
+
+export function isAdminRole(role?: UserRole): boolean {
+  return role === 'SUPER_ADMIN' || role === 'ADMIN';
+}
+
+export function isInstituteRole(role?: UserRole): boolean {
+  return role === 'INSTITUTE_OWNER' || role === 'INSTITUTE_STAFF';
+}
+
+export function canAccessAdmin(session: AuthPayload | null): boolean {
+  if (!session) return false;
+  return session.isAdmin || isAdminRole(session.role);
 }

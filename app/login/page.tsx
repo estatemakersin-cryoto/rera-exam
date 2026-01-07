@@ -11,7 +11,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async (e: any) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
@@ -43,11 +43,16 @@ export default function LoginPage() {
         return;
       }
 
-      window.location.href = "/mock-test";
+      // Redirect based on admin status
+      if (data.user?.isAdmin) {
+        window.location.href = "/admin";
+      } else {
+        window.location.href = "/dashboard";
+      }
 
     } catch (err) {
+      console.error("Login error:", err);
       setError("Something went wrong");
-    } finally {
       setLoading(false);
     }
   };
@@ -112,7 +117,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-400"
+            className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
             {loading ? "Please wait..." : "Login"}
           </button>

@@ -159,8 +159,8 @@ export default function DashboardPage() {
           <div className="grid md:grid-cols-4 gap-6">
 
             <div>
-              <p className="text-sm text-gray-600">Registration No.</p>
-              <p className="text-xl font-bold">{user.registrationNo}</p>
+              <p className="text-sm text-gray-600">Referral Code</p>
+              <p className="text-xl font-bold">{user.referralCode || 'N/A'}</p>
             </div>
 
             <div>

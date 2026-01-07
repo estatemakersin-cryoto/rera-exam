@@ -46,3 +46,6 @@ next-env.d.ts
 
 .vercel
 .env*.local
+
+DB PW.txt
+backup.sql
