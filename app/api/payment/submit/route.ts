@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { getConfig } from "@/lib/config";
 import * as XLSX from "xlsx";
 
 export const dynamic = 'force-dynamic';
@@ -34,8 +35,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const planType = "PLAN_500";
-    const amount = 500;
+    const planType = "PREMIUM_PLAN";
+    const amount = await getConfig<number>("exam_package_price");
 
     console.log("📝 Creating payment proof for user:", session.userId);
 

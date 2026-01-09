@@ -91,10 +91,10 @@ export default function PaymentPage() {
   // ------------------------------
   if (success) {
     const msg =
-      `Payment submitted for EstateMakers MahaRERA ₹750 Plan:\n\n` +
+      `Payment submitted for EstateMakers MahaRERA ₹350 Plan:\n\n` +
       `Name: ${user?.fullName}\n` +
       `Mobile: ${user?.mobile}\n` +
-      `Plan: Premium – ₹750\n` +
+      `Plan: Premium – ₹350\n` +
       `Amount: ₹${amount}\n` +
       `UPI Ref: ${transactionId}\n\n` +
       `Please verify and activate.`;
@@ -149,7 +149,7 @@ export default function PaymentPage() {
       <header className="bg-blue-900 text-white px-6 py-4 shadow">
         <div className="max-w-4xl mx-auto flex justify-between items-center">
           <h1 className="text-xl md:text-2xl font-bold">
-            Buy MahaRERA Premium Plan (₹750)
+            Buy MahaRERA Premium Plan (₹350)
           </h1>
           <button
             onClick={() => router.push("/dashboard")}
@@ -217,7 +217,7 @@ export default function PaymentPage() {
               <input
                 type="text"
                 disabled
-                value="Premium Plan – ₹750"
+                value="Premium Plan – ₹350"
                 className="w-full border rounded px-3 py-2 bg-gray-100 text-sm"
               />
             </div>

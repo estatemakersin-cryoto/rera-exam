@@ -38,7 +38,7 @@ export default function HomePage() {
               href="/register"
               className="px-8 py-4 bg-purple-500 hover:bg-purple-600 text-white font-bold rounded-lg text-lg shadow-xl transition transform hover:scale-105"
             >
-              Start Preparation – ₹750
+              Start Preparation – ₹350
             </Link>
           </div>
         </div>
@@ -133,7 +133,7 @@ export default function HomePage() {
             </h3>
 
             <div className="text-4xl md:text-5xl font-extrabold text-purple-600 mb-4">
-              ₹750
+              ₹350
             </div>
 
             <ul className="space-y-2 text-sm text-gray-700 mb-6 flex-1">
@@ -148,7 +148,7 @@ export default function HomePage() {
               href="/register"
               className="block text-center px-6 py-3 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold shadow-md transition"
             >
-              Buy Premium – ₹750
+              Buy Premium – ₹350
             </Link>
           </div>
         </div>

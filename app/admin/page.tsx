@@ -10,6 +10,7 @@ interface AdminStats {
   usersToday: number;
   paidToday: number;
   revenue: number;
+  examPackagePrice: number;  // ← ADD THIS
 }
 
 export default function AdminPage() {
@@ -204,7 +205,7 @@ export default function AdminPage() {
                 {stats?.paidToday || 0}
               </p>
               <p className="text-xs text-gray-500 mt-1">
-                ₹{(stats?.paidToday || 0) * 500} today
+                ₹{(stats?.paidToday || 0) * (stats?.examPackagePrice || 350)} today
               </p>
             </div>
             <div className="bg-purple-100 p-3 rounded-full">

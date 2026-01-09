@@ -63,7 +63,6 @@ export async function POST(req: Request) {
         role: 'CANDIDATE',
         isAdmin: false,
         packagePurchased: false,
-        testsRemaining: 2,
       },
     });
 

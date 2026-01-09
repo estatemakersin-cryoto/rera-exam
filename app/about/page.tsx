@@ -62,7 +62,7 @@ export default function AboutPage() {
           <h2 className="text-2xl font-bold mb-4">Pricing</h2>
 
           <p className="text-gray-700 mb-2">
-            <strong>₹750</strong> – Full Access to Complete MahaRERA Exam Preparation
+            <strong>₹350</strong> – Full Access to Complete MahaRERA Exam Preparation
           </p>
 
           <ul className="text-gray-700 mb-4 list-disc ml-6 space-y-1">
