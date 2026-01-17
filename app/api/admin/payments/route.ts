@@ -1,119 +1,55 @@
+// ══════════════════════════════════════════════════════════════════════════════
+// PATH: app/api/admin/payments/route.ts
+// Admin Payments API - GET list with status filter
+// ══════════════════════════════════════════════════════════════════════════════
+
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
     await requireAdmin();
 
+    const { searchParams } = new URL(req.url);
+    const status = searchParams.get("status") || "PENDING";
+
+    // Get payments with user info
     const payments = await prisma.paymentProof.findMany({
+      where: { status },
       orderBy: { createdAt: "desc" },
-      take: 100,
       include: {
         user: {
           select: {
-            id: true,
             fullName: true,
-            email: true,
             mobile: true,
-            packagePurchased: true,
-            testsUnlocked: true,
-            testsCompleted: true,
-            testsRemaining: true,
+            email: true,
           },
         },
       },
     });
 
-    return NextResponse.json({ payments });
-  } catch (err) {
-    console.error("Admin payments GET error:", err);
-    return NextResponse.json(
-      { error: "Failed to load payments" },
-      { status: 500 }
-    );
-  }
-}
+    // Get counts for tabs
+    const [pendingCount, approvedCount, rejectedCount] = await Promise.all([
+      prisma.paymentProof.count({ where: { status: "PENDING" } }),
+      prisma.paymentProof.count({ where: { status: "APPROVED" } }),
+      prisma.paymentProof.count({ where: { status: "REJECTED" } }),
+    ]);
 
-// ==============================
-// POST → APPROVE / REJECT
-// ==============================
-export async function POST(req: NextRequest) {
-  try {
-    await requireAdmin();
-
-    const { paymentId, action } = await req.json();
-
-    const payment = await prisma.paymentProof.findUnique({
-      where: { id: paymentId },
-    });
-
-    if (!payment) {
-      return NextResponse.json(
-        { error: "Payment not found" },
-        { status: 404 }
-      );
-    }
-
-    if (payment.status !== "PENDING") {
-      return NextResponse.json(
-        { error: "Payment already processed" },
-        { status: 400 }
-      );
-    }
-
-    // ---------------- REJECT ----------------
-    if (action === "REJECT") {
-      await prisma.paymentProof.update({
-        where: { id: paymentId },
-        data: { status: "REJECTED" },
-      });
-      return NextResponse.json({ success: true });
-    }
-
-    // ---------------- APPROVE ----------------
-    const user = await prisma.user.findUnique({
-      where: { id: payment.userId },
-    });
-
-    if (!user) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      );
-    }
-
-    // NEW SINGLE PLAN LOGIC — Always unlock full access
-    const totalTests = 5;
-    const testsCompleted = user.testsCompleted || 0;
-
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        packagePurchased: true,
-        packagePurchasedDate: new Date(),
-
-        // RESET TEST ACCESS FOR PREMIUM
-        testsUnlocked: 5,
-        testsCompleted: 0,
-        testsRemaining: 5,
+    return NextResponse.json({
+      payments,
+      counts: {
+        PENDING: pendingCount,
+        APPROVED: approvedCount,
+        REJECTED: rejectedCount,
       },
     });
-
-    // Mark payment approved
-    await prisma.paymentProof.update({
-      where: { id: paymentId },
-      data: { status: "APPROVED" },
-    });
-
-
-    return NextResponse.json({ success: true });
-  } catch (err) {
-    console.error("Admin payments POST error:", err);
+  } catch (error) {
+    console.error("Admin Payments Error:", error);
     return NextResponse.json(
-      { error: "Failed to process payment" },
+      { error: "Failed to load payments" },
       { status: 500 }
     );
   }

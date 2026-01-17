@@ -21,13 +21,16 @@ interface SystemConfig {
   updatedAt: string;
 }
 
-type Category = "ALL" | "EXAM" | "PLATFORM" | "INSTITUTE";
+type Category = "ALL" | "EXAM" | "PLATFORM" | "INSTITUTE" | "FEES" | "PRICING" | "PAYMENT";
 
 const CATEGORIES: { value: Category; label: string; color: string }[] = [
   { value: "ALL", label: "All Settings", color: "gray" },
   { value: "EXAM", label: "Exam Settings", color: "blue" },
   { value: "PLATFORM", label: "Platform", color: "green" },
   { value: "INSTITUTE", label: "Institute", color: "purple" },
+  { value: "FEES", label: "Fees", color: "yellow" },
+  { value: "PRICING", label: "Pricing", color: "orange" },
+  { value: "PAYMENT", label: "Payment", color: "teal" },
 ];
 
 const DATA_TYPES = [
@@ -624,7 +627,7 @@ export default function AdminSettingsPage() {
                       }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder={
-                        formData.dataType === "NUMBER" ? "750" : "Enter value"
+                        formData.dataType === "NUMBER" ? "350" : "Enter value"
                       }
                       required
                     />

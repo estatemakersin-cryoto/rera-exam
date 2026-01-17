@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from 'remark-gfm';
 
 interface Chapter {
   id: number;
@@ -21,6 +22,82 @@ interface Revision {
   imageUrl: string | null;
   qaJson: any;
   order: number;
+}
+
+// Collapsible Notes Component
+function CollapsibleNotes({ content }: { content: string }) {
+  const [openSections, setOpenSections] = useState<number[]>([0]);
+
+  // Split by ## or ### headings
+  const sections = content.split(/(?=^###?\s)/gm).filter(s => s.trim());
+
+  const toggleSection = (index: number) => {
+    setOpenSections(prev => 
+      prev.includes(index) 
+        ? prev.filter(i => i !== index)
+        : [...prev, index]
+    );
+  };
+
+  const expandAll = () => setOpenSections(sections.map((_, i) => i));
+  const collapseAll = () => setOpenSections([]);
+
+  if (sections.length <= 1) {
+    return (
+      <div className="prose max-w-none [&_table]:w-full [&_table]:border-collapse [&_table]:border [&_table]:border-gray-300 [&_th]:bg-blue-600 [&_th]:text-white [&_th]:px-4 [&_th]:py-3 [&_th]:border [&_th]:border-gray-300 [&_th]:text-left [&_td]:px-4 [&_td]:py-3 [&_td]:border [&_td]:border-gray-300 [&_td]:bg-white">
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex justify-end gap-2 mb-3">
+        <button onClick={expandAll} className="text-xs px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
+          📖 Expand All
+        </button>
+        <button onClick={collapseAll} className="text-xs px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200">
+          📕 Collapse All
+        </button>
+      </div>
+
+      <div className="space-y-2">
+        {sections.map((section, index) => {
+          const lines = section.trim().split('\n');
+          const heading = lines[0].replace(/^###?\s*/, '').trim();
+          const body = lines.slice(1).join('\n').trim();
+          const isOpen = openSections.includes(index);
+
+          return (
+            <div key={index} className="border rounded-lg overflow-hidden bg-white shadow-sm">
+              <button
+                onClick={() => toggleSection(index)}
+                className="w-full text-left p-4 hover:bg-blue-50 transition flex justify-between items-center"
+              >
+                <span className="font-semibold text-gray-800 flex items-center gap-2">
+                  <span className={`text-lg ${isOpen ? 'text-green-600' : 'text-blue-600'}`}>
+                    {isOpen ? '📖' : '📘'}
+                  </span>
+                  {heading}
+                </span>
+                <span className={`text-2xl font-bold ${isOpen ? 'text-green-600' : 'text-blue-600'}`}>
+                  {isOpen ? "−" : "+"}
+                </span>
+              </button>
+              
+              {isOpen && body && (
+                <div className="p-4 border-t bg-gray-50">
+                  <div className="prose max-w-none [&_table]:w-full [&_table]:border-collapse [&_table]:border [&_table]:border-gray-300 [&_th]:bg-blue-600 [&_th]:text-white [&_th]:px-4 [&_th]:py-3 [&_th]:border [&_th]:border-gray-300 [&_th]:text-left [&_td]:px-4 [&_td]:py-3 [&_td]:border [&_td]:border-gray-300 [&_td]:bg-white">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{body}</ReactMarkdown>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 export default function UserRevisionPage() {
@@ -67,7 +144,7 @@ export default function UserRevisionPage() {
 
   const loadChapters = async () => {
     try {
-      const res = await fetch("/api/admin/chapters");
+      const res = await fetch("/api/user/chapters");
       if (!res.ok) throw new Error("Failed to load chapters");
       const data = await res.json();
       setChapters(data.chapters || []);
@@ -89,7 +166,7 @@ export default function UserRevisionPage() {
     setError("");
     
     try {
-      const res = await fetch(`/api/users/revision?chapterId=${selectedChapter}`);
+      const res = await fetch(`/api/user/revision?chapterId=${selectedChapter}`);
       if (!res.ok) throw new Error("Failed to load revisions");
       
       const data = await res.json();
@@ -235,17 +312,16 @@ export default function UserRevisionPage() {
                     {/* Revision Content - Collapsible */}
                     {openRevision === revision.id && (
                       <div className="border-t">
-                        {/* Main Content */}
+                        {/* Main Content - Collapsible Sections */}
                         {((language === "en" && revision.contentEn) || 
                           (language === "mr" && revision.contentMr)) && (
-                          <div className="p-6 bg-gray-50">
-                            <div className="prose max-w-none">
-                              <ReactMarkdown>
-                                {language === "en" 
-                                  ? revision.contentEn || "" 
-                                  : revision.contentMr || revision.contentEn || ""}
-                              </ReactMarkdown>
-                            </div>
+                          <div className="p-4 bg-gray-50">
+                            <CollapsibleNotes 
+                              content={language === "en" 
+                                ? revision.contentEn || "" 
+                                : revision.contentMr || revision.contentEn || ""
+                              }
+                            />
                           </div>
                         )}
 

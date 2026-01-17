@@ -1,22 +1,3 @@
-// ══════════════════════════════════════════════════════════════════════════════
-// ESTATEMAKERS UNIFIED SCHEMA
-// Version: 1.1 (Migration-Safe)
-// Updated: January 7, 2025
-// ══════════════════════════════════════════════════════════════════════════════
-// 
-// IMPORTANT: This schema preserves existing table and field names from rera-exam
-// to prevent data loss during migration.
-//
-// SECTIONS:
-// 1. Configuration (Generator, Datasource, Enums)
-// 2. Core (User, SystemConfig, Referral)
-// 3. Exam Vertical (Chapter, Question, TestAttempt, etc.)
-// 4. Institute Management (Institute, Batch, ExamSession)
-// 5. Certificate System
-// 6. CRM Vertical (Phase 2 - Minimal for now)
-//
-// ══════════════════════════════════════════════════════════════════════════════
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -26,9 +7,416 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// SECTION 1: ENUMS
-// ══════════════════════════════════════════════════════════════════════════════
+model User {
+  id                   String             @id @default(cuid())
+  email                String?            @unique
+  createdAt            DateTime           @default(now())
+  fullName             String
+  isAdmin              Boolean            @default(false)
+  mobile               String?            @unique
+  passwordHash         String?
+  testsRemaining       Int                @default(0)
+  packageExpiry        DateTime?
+  packagePurchased     Boolean            @default(false)
+  packagePurchasedDate DateTime?
+  referralCode         String?            @unique
+  referralCount        Int                @default(0)
+  referredBy           String?
+  testsCompleted       Int                @default(0)
+  testsUnlocked        Int                @default(0)
+  avatar               String?
+  isActive             Boolean            @default(true)
+  isVerified           Boolean            @default(false)
+  lastLoginAt          DateTime?
+  role                 UserRole           @default(CANDIDATE)
+  updatedAt            DateTime           @default(now()) @updatedAt
+  certificates         Certificate[]
+  examPayments         ExamPayment[]
+  instituteStaffRoles  InstituteStaff[]
+  instituteEnrollments InstituteStudent[]
+  paymentProofs        PaymentProof[]
+  referralAsConverted  Referral[]         @relation("ReferralConvertedUser")
+  referralsMade        Referral[]         @relation("UserReferrals")
+  attempts             TestAttempt[]
+}
+
+model SystemConfig {
+  id          String         @id @default(cuid())
+  key         String         @unique
+  value       String
+  label       String
+  description String?
+  category    String         @default("GENERAL")
+  dataType    ConfigDataType @default(STRING)
+  isEditable  Boolean        @default(true)
+  isPublic    Boolean        @default(false)
+  updatedAt   DateTime       @updatedAt
+}
+
+model Referral {
+  id              Int            @id @default(autoincrement())
+  referrerId      String
+  name            String?
+  mobile          String
+  status          ReferralStatus @default(PENDING)
+  convertedUserId String?
+  createdAt       DateTime       @default(now())
+  rewardAmount    Int?
+  rewardGiven     Boolean        @default(false)
+  rewardGivenAt   DateTime?
+  source          String?
+  updatedAt       DateTime       @default(now()) @updatedAt
+  convertedUser   User?          @relation("ReferralConvertedUser", fields: [convertedUserId], references: [id])
+  referrer        User           @relation("UserReferrals", fields: [referrerId], references: [id])
+}
+
+model Chapter {
+  id                   Int               @id @default(autoincrement())
+  chapterNumber        Int               @unique
+  titleEn              String
+  titleMr              String?
+  isActive             Boolean           @default(true)
+  actChapterNameEn     String?
+  actChapterNameMr     String?
+  descriptionEn        String?
+  descriptionMr        String?
+  displayInApp         Boolean           @default(true)
+  mahareraEquivalentEn String?
+  mahareraEquivalentMr String?
+  orderIndex           Int?
+  sections             String?
+  questions            Question[]
+  revision             RevisionContent[]
+}
+
+model RevisionContent {
+  id        Int      @id @default(autoincrement())
+  chapterId Int
+  contentEn String?
+  contentMr String?
+  imageUrl  String?
+  qaJson    Json?    @default("[]")
+  createdAt DateTime @default(now())
+  order     Int      @default(0)
+  titleEn   String
+  titleMr   String
+  updatedAt DateTime @updatedAt
+  videoUrl  String?
+  chapter   Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@index([chapterId])
+}
+
+model Question {
+  questionMr    String?
+  correctAnswer String
+  difficulty    Difficulty @default(MODERATE)
+  chapterId     Int
+  questionEn    String
+  id            Int        @id @default(autoincrement())
+  optionAEn     String
+  optionAMr     String?
+  optionBEn     String
+  optionBMr     String?
+  optionCEn     String
+  optionCMr     String?
+  optionDEn     String
+  optionDMr     String?
+  createdAt     DateTime   @default(now())
+  instituteId   String?
+  isActive      Boolean    @default(true)
+  updatedAt     DateTime   @default(now()) @updatedAt
+  chapter       Chapter    @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  institute     Institute? @relation(fields: [instituteId], references: [id])
+  responses     Response[]
+
+  @@index([chapterId])
+  @@index([instituteId])
+}
+
+model TestAttempt {
+  id              String       @id @default(cuid())
+  userId          String?
+  startTime       DateTime     @default(now())
+  endTime         DateTime?
+  score           Int?
+  totalQuestions  Int          @default(50)
+  correctAnswers  Int?
+  status          TestStatus   @default(IN_PROGRESS)
+  durationMinutes Int          @default(60)
+  examSessionId   String?
+  isPassed        Boolean?
+  mode            TestMode     @default(PRACTICE)
+  passingMarks    Int?
+  certificate     Certificate?
+  responses       Response[]
+  examSession     ExamSession? @relation(fields: [examSessionId], references: [id])
+  user            User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([examSessionId])
+}
+
+model Response {
+  id              String      @id @default(cuid())
+  attemptId       String
+  userAnswer      String?
+  isCorrect       Boolean?
+  createdAt       DateTime    @default(now())
+  questionId      Int
+  markedForReview Boolean     @default(false)
+  attempt         TestAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question        Question    @relation(fields: [questionId], references: [id])
+
+  @@index([attemptId])
+  @@index([questionId])
+}
+
+model PaymentProof {
+  id            String        @id @default(cuid())
+  userId        String
+  amount        Int
+  createdAt     DateTime      @default(now())
+  notes         String?
+  planType      String
+  transactionId String
+  status        PaymentStatus @default(PENDING)
+  updatedAt     DateTime      @default(now()) @updatedAt
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}
+
+model ExamPayment {
+  id             String        @id @default(cuid())
+  userId         String
+  amount         Int
+  planType       String
+  status         PaymentStatus @default(PENDING)
+  transactionId  String
+  notes          String?
+  instituteId    String?
+  platformShare  Int?
+  instituteShare Int?
+  approvedAt     DateTime?
+  approvedBy     String?
+  rejectedAt     DateTime?
+  rejectedReason String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  institute      Institute?    @relation(fields: [instituteId], references: [id])
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([instituteId])
+}
+
+model Institute {
+  id                  String             @id @default(cuid())
+  name                String
+  code                String             @unique
+  description         String?
+  contactPerson       String
+  contactPhone        String
+  contactEmail        String?
+  address             String?
+  city                String?
+  state               String             @default("Maharashtra")
+  logo                String?
+  primaryColor        String             @default("#1E40AF")
+  secondaryColor      String             @default("#3B82F6")
+  subdomain           String?            @unique
+  isActive            Boolean            @default(false)
+  isVerified          Boolean            @default(false)
+  verifiedAt          DateTime?
+  validUntil          DateTime?
+  revenueSharePercent Int                @default(20)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  batches             Batch[]
+  certificates        Certificate[]
+  payments            ExamPayment[]
+  examSessions        ExamSession[]
+  branches            InstituteBranch[]
+  staff               InstituteStaff[]
+  students            InstituteStudent[]
+  questions           Question[]
+}
+
+model InstituteBranch {
+  id              String             @id @default(cuid())
+  instituteId     String
+  name            String
+  address         String?
+  city            String?
+  contactPerson   String?
+  contactPhone    String?
+  isActive        Boolean            @default(true)
+  isHeadOffice    Boolean            @default(false)
+  isOnline        Boolean            @default(false)
+  subscriptionFee Int?
+  validUntil      DateTime?
+  approvedAt      DateTime?
+  approvedBy      String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  batches         Batch[]
+  institute       Institute          @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  students        InstituteStudent[]
+
+  @@index([instituteId])
+  @@index([city])
+}
+
+model InstituteStaff {
+  id                 String             @id @default(cuid())
+  instituteId        String
+  userId             String
+  role               InstituteStaffRole @default(STAFF)
+  isActive           Boolean            @default(true)
+  canManageStudents  Boolean            @default(true)
+  canManageBatches   Boolean            @default(false)
+  canManageExams     Boolean            @default(false)
+  canManageQuestions Boolean            @default(false)
+  canViewReports     Boolean            @default(true)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  institute          Institute          @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  user               User               @relation(fields: [userId], references: [id])
+
+  @@unique([instituteId, userId])
+  @@index([instituteId])
+  @@index([userId])
+}
+
+model InstituteStudent {
+  id          String           @id @default(cuid())
+  instituteId String
+  userId      String
+  branchId    String?
+  batchId     String?
+  status      EnrollmentStatus @default(APPLIED)
+  appliedAt   DateTime         @default(now())
+  enrolledAt  DateTime?
+  completedAt DateTime?
+  notes       String?
+  batch       Batch?           @relation(fields: [batchId], references: [id])
+  branch      InstituteBranch? @relation(fields: [branchId], references: [id])
+  institute   Institute        @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  user        User             @relation(fields: [userId], references: [id])
+
+  @@unique([instituteId, userId])
+  @@index([instituteId])
+  @@index([userId])
+  @@index([branchId])
+  @@index([batchId])
+}
+
+model Batch {
+  id           String             @id @default(cuid())
+  instituteId  String
+  branchId     String?
+  name         String
+  description  String?
+  mode         BatchMode          @default(OFFLINE)
+  startDate    DateTime
+  endDate      DateTime
+  startTime    String?
+  endTime      String?
+  maxStudents  Int                @default(50)
+  fee          Int
+  address      String?
+  city         String?
+  meetingLink  String?
+  isActive     Boolean            @default(true)
+  isPublished  Boolean            @default(false)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  branch       InstituteBranch?   @relation(fields: [branchId], references: [id])
+  institute    Institute          @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  examSessions ExamSession[]
+  students     InstituteStudent[]
+
+  @@index([instituteId])
+  @@index([branchId])
+  @@index([isPublished])
+  @@index([mode])
+}
+
+model ExamSession {
+  id                    String        @id @default(cuid())
+  instituteId           String
+  batchId               String?
+  name                  String
+  description           String?
+  examDate              DateTime
+  startTime             DateTime
+  endTime               DateTime
+  durationMinutes       Int           @default(60)
+  totalQuestions        Int           @default(50)
+  passingMarks          Int           @default(20)
+  useInstituteQuestions Boolean       @default(false)
+  isActive              Boolean       @default(false)
+  isCompleted           Boolean       @default(false)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  batch                 Batch?        @relation(fields: [batchId], references: [id])
+  institute             Institute     @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  attempts              TestAttempt[]
+
+  @@index([instituteId])
+  @@index([batchId])
+  @@index([examDate])
+}
+
+model Certificate {
+  id              String      @id @default(cuid())
+  certificateNo   String      @unique
+  userId          String
+  attemptId       String      @unique
+  instituteId     String?
+  studentName     String
+  score           Int
+  totalQuestions  Int
+  percentage      Float
+  issueDate       DateTime    @default(now())
+  expiryDate      DateTime?
+  qrCodeUrl       String?
+  pdfUrl          String?
+  verificationUrl String?
+  isRevoked       Boolean     @default(false)
+  revokedAt       DateTime?
+  revokedReason   String?
+  revokedBy       String?
+  createdAt       DateTime    @default(now())
+  attempt         TestAttempt @relation(fields: [attemptId], references: [id])
+  institute       Institute?  @relation(fields: [instituteId], references: [id])
+  user            User        @relation(fields: [userId], references: [id])
+
+  @@index([certificateNo])
+  @@index([userId])
+  @@index([instituteId])
+}
+
+model AgentProfile {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  reraNumber         String?
+  reraCertificateUrl String?
+  company            String?
+  experience         Int?
+  specializations    String[] @default([])
+  languages          String[] @default([])
+  whatsapp           String?
+  website            String?
+  totalLeads         Int      @default(0)
+  totalDeals         Int      @default(0)
+  rating             Float    @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
 
 enum UserRole {
   SUPER_ADMIN
@@ -48,8 +436,8 @@ enum PaymentStatus {
 
 enum ReferralStatus {
   PENDING
-  SUCCESS       // Keep existing value
-  CONFIRMED     // New value for future use
+  SUCCESS
+  CONFIRMED
   REWARDED
 }
 
@@ -91,471 +479,7 @@ enum ConfigDataType {
   JSON
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// SECTION 2: CORE MODELS
-// ══════════════════════════════════════════════════════════════════════════════
-
-model User {
-  id           String    @id @default(cuid())
-  fullName     String
-  mobile       String?   @unique    // Keep existing field name
-  email        String?   @unique    // Made optional for phone-only users
-  passwordHash String?              // Keep existing field name
-  avatar       String?
-  
-  // Role & Status (NEW - with defaults for existing data)
-  role         UserRole  @default(CANDIDATE)
-  isAdmin      Boolean   @default(false)  // Keep for backward compatibility
-  isActive     Boolean   @default(true)
-  isVerified   Boolean   @default(false)
-  lastLoginAt  DateTime?
-  
-  // Exam Package (existing fields preserved)
-  packagePurchased     Boolean   @default(false)
-  packagePurchasedDate DateTime?
-  packageExpiry        DateTime?
-  testsUnlocked        Int       @default(0)
-  testsCompleted       Int       @default(0)
-  testsRemaining       Int       @default(0)
-  
-  // Referral (existing fields preserved)
-  referredBy    String?
-  referralCode  String?   @unique
-  referralCount Int       @default(0)
-  
-  // Relations - Referrals (existing)
-  referralsMade       Referral[] @relation("UserReferrals")
-  referralAsConverted Referral[] @relation("ReferralConvertedUser")
-  
-  // Relations - Exam (existing)
-  attempts      TestAttempt[]
-  paymentProofs PaymentProof[]
-  
-  // Relations - Exam (NEW)
-  examPayments  ExamPayment[]
-  certificates  Certificate[]
-  
-  // Relations - Institute (NEW)
-  instituteStaffRoles  InstituteStaff[]
-  instituteEnrollments InstituteStudent[]
-  
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
+enum BatchMode {
+  ONLINE
+  OFFLINE
 }
-
-model SystemConfig {
-  id          String         @id @default(cuid())
-  key         String         @unique
-  value       String
-  label       String
-  description String?
-  category    String         @default("GENERAL")
-  dataType    ConfigDataType @default(STRING)
-  isEditable  Boolean        @default(true)
-  isPublic    Boolean        @default(false)
-  updatedAt   DateTime       @updatedAt
-}
-
-model Referral {
-  id              Int            @id @default(autoincrement())
-  referrerId      String
-  name            String?
-  mobile          String
-  status          ReferralStatus @default(PENDING)
-  convertedUserId String?
-  
-  // NEW fields
-  source          String?
-  rewardGiven     Boolean        @default(false)
-  rewardAmount    Int?
-  rewardGivenAt   DateTime?
-  
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @default(now()) @updatedAt
-  
-  convertedUser   User?          @relation("ReferralConvertedUser", fields: [convertedUserId], references: [id])
-  referrer        User           @relation("UserReferrals", fields: [referrerId], references: [id])
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// SECTION 3: EXAM VERTICAL
-// ══════════════════════════════════════════════════════════════════════════════
-
-model Chapter {
-  id                   Int               @id @default(autoincrement())
-  chapterNumber        Int               @unique
-  titleEn              String
-  titleMr              String?
-  isActive             Boolean           @default(true)
-  actChapterNameEn     String?
-  actChapterNameMr     String?
-  descriptionEn        String?
-  descriptionMr        String?
-  displayInApp         Boolean           @default(true)
-  mahareraEquivalentEn String?
-  mahareraEquivalentMr String?
-  orderIndex           Int?
-  sections             String?
-  
-  // Relations
-  questions Question[]
-  revision  RevisionContent[]
-}
-
-model RevisionContent {
-  id        Int      @id @default(autoincrement())
-  chapterId Int
-  titleEn   String
-  titleMr   String
-  contentEn String?
-  contentMr String?
-  imageUrl  String?
-  videoUrl  String?   // NEW: For future video content
-  qaJson    Json?     @default("[]")
-  order     Int       @default(0)
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  chapter   Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
-
-  @@index([chapterId])
-}
-
-model Question {
-  id            Int        @id @default(autoincrement())
-  chapterId     Int
-  questionEn    String
-  questionMr    String?
-  optionAEn     String
-  optionAMr     String?
-  optionBEn     String
-  optionBMr     String?
-  optionCEn     String
-  optionCMr     String?
-  optionDEn     String
-  optionDMr     String?
-  correctAnswer String
-  difficulty    Difficulty @default(MODERATE)
-  isActive      Boolean    @default(true)    // NEW
-  
-  // Institute-specific questions (NEW)
-  instituteId   String?
-  institute     Institute? @relation(fields: [instituteId], references: [id])
-  
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @default(now()) @updatedAt
-  
-  // Relations
-  chapter   Chapter    @relation(fields: [chapterId], references: [id], onDelete: Cascade)
-  responses Response[]
-  
-  @@index([chapterId])
-  @@index([instituteId])
-}
-
-model TestAttempt {
-  id             String      @id @default(cuid())
-  userId         String?
-  startTime      DateTime    @default(now())
-  endTime        DateTime?
-  score          Int?
-  totalQuestions Int         @default(50)
-  correctAnswers Int?
-  status         TestStatus  @default(IN_PROGRESS)
-  
-  // NEW fields for institute exams
-  mode            TestMode    @default(PRACTICE)
-  durationMinutes Int         @default(60)
-  examSessionId   String?
-  passingMarks    Int?
-  isPassed        Boolean?
-  
-  // Relations
-  user        User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  examSession ExamSession? @relation(fields: [examSessionId], references: [id])
-  responses   Response[]
-  certificate Certificate?
-  
-  @@index([userId])
-  @@index([examSessionId])
-}
-
-model Response {
-  id              String      @id @default(cuid())
-  attemptId       String
-  questionId      Int
-  userAnswer      String?
-  isCorrect       Boolean?
-  markedForReview Boolean     @default(false)  // NEW
-  createdAt       DateTime    @default(now())
-  
-  attempt  TestAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
-  question Question    @relation(fields: [questionId], references: [id])
-  
-  @@index([attemptId])
-  @@index([questionId])
-}
-
-// Keep existing PaymentProof for backward compatibility
-model PaymentProof {
-  id            String   @id @default(cuid())
-  userId        String
-  amount        Int
-  status        String   @default("PENDING")
-  planType      String
-  transactionId String
-  notes         String?
-  createdAt     DateTime @default(now())
-  
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@index([userId])
-}
-
-// NEW: ExamPayment for future payments with revenue share
-model ExamPayment {
-  id              String        @id @default(cuid())
-  userId          String
-  amount          Int
-  planType        String
-  status          PaymentStatus @default(PENDING)
-  transactionId   String
-  notes           String?
-  
-  // For institute payments (revenue share)
-  instituteId     String?
-  platformShare   Int?
-  instituteShare  Int?
-  
-  // Approval tracking
-  approvedAt      DateTime?
-  approvedBy      String?
-  rejectedAt      DateTime?
-  rejectedReason  String?
-  
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  
-  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  institute       Institute?    @relation(fields: [instituteId], references: [id])
-  
-  @@index([userId])
-  @@index([status])
-  @@index([instituteId])
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// SECTION 4: INSTITUTE MANAGEMENT (ALL NEW)
-// ══════════════════════════════════════════════════════════════════════════════
-
-model Institute {
-  id                  String    @id @default(cuid())
-  name                String
-  code                String    @unique
-  description         String?
-  
-  // Contact
-  contactPerson       String
-  contactPhone        String
-  contactEmail        String?
-  address             String?
-  city                String?
-  state               String    @default("Maharashtra")
-  
-  // White-label Customization
-  logo                String?
-  primaryColor        String    @default("#1E40AF")
-  secondaryColor      String    @default("#3B82F6")
-  subdomain           String?   @unique
-  
-  // Status
-  isActive            Boolean   @default(false)
-  isVerified          Boolean   @default(false)
-  verifiedAt          DateTime?
-  
-  // Revenue Configuration
-  revenueSharePercent Int       @default(20)
-  
-  // Relations
-  staff               InstituteStaff[]
-  students            InstituteStudent[]
-  batches             Batch[]
-  examSessions        ExamSession[]
-  questions           Question[]
-  certificates        Certificate[]
-  payments            ExamPayment[]
-  
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-}
-
-model InstituteStaff {
-  id            String             @id @default(cuid())
-  instituteId   String
-  userId        String
-  role          InstituteStaffRole @default(STAFF)
-  isActive      Boolean            @default(true)
-  
-  // Permissions
-  canManageStudents  Boolean @default(true)
-  canManageBatches   Boolean @default(false)
-  canManageExams     Boolean @default(false)
-  canManageQuestions Boolean @default(false)
-  canViewReports     Boolean @default(true)
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
-  user      User      @relation(fields: [userId], references: [id])
-  
-  @@unique([instituteId, userId])
-  @@index([instituteId])
-  @@index([userId])
-}
-
-model InstituteStudent {
-  id          String           @id @default(cuid())
-  instituteId String
-  userId      String
-  batchId     String?
-  status      EnrollmentStatus @default(APPLIED)
-  
-  appliedAt   DateTime  @default(now())
-  enrolledAt  DateTime?
-  completedAt DateTime?
-  notes       String?
-  
-  institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
-  user      User      @relation(fields: [userId], references: [id])
-  batch     Batch?    @relation(fields: [batchId], references: [id])
-  
-  @@unique([instituteId, userId])
-  @@index([instituteId])
-  @@index([userId])
-  @@index([batchId])
-}
-
-model Batch {
-  id          String   @id @default(cuid())
-  instituteId String
-  name        String
-  description String?
-  startDate   DateTime
-  endDate     DateTime
-  maxStudents Int      @default(50)
-  fee         Int
-  isActive    Boolean  @default(true)
-  isPublished Boolean  @default(false)
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  institute    Institute          @relation(fields: [instituteId], references: [id], onDelete: Cascade)
-  students     InstituteStudent[]
-  examSessions ExamSession[]
-  
-  @@index([instituteId])
-  @@index([isPublished])
-}
-
-model ExamSession {
-  id              String   @id @default(cuid())
-  instituteId     String
-  batchId         String?
-  name            String
-  description     String?
-  
-  // Schedule
-  examDate        DateTime
-  startTime       DateTime
-  endTime         DateTime
-  
-  // Configuration
-  durationMinutes Int     @default(60)
-  totalQuestions  Int     @default(50)
-  passingMarks    Int     @default(20)
-  
-  useInstituteQuestions Boolean @default(false)
-  isActive              Boolean @default(false)
-  isCompleted           Boolean @default(false)
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  institute Institute     @relation(fields: [instituteId], references: [id], onDelete: Cascade)
-  batch     Batch?        @relation(fields: [batchId], references: [id])
-  attempts  TestAttempt[]
-  
-  @@index([instituteId])
-  @@index([batchId])
-  @@index([examDate])
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// SECTION 5: CERTIFICATE SYSTEM (NEW)
-// ══════════════════════════════════════════════════════════════════════════════
-
-model Certificate {
-  id              String    @id @default(cuid())
-  certificateNo   String    @unique
-  userId          String
-  attemptId       String    @unique
-  instituteId     String?
-  
-  studentName     String
-  score           Int
-  totalQuestions  Int
-  percentage      Float
-  
-  issueDate       DateTime  @default(now())
-  expiryDate      DateTime?
-  
-  qrCodeUrl       String?
-  pdfUrl          String?
-  verificationUrl String?
-  
-  isRevoked       Boolean   @default(false)
-  revokedAt       DateTime?
-  revokedReason   String?
-  revokedBy       String?
-  
-  createdAt       DateTime  @default(now())
-  
-  user      User        @relation(fields: [userId], references: [id])
-  attempt   TestAttempt @relation(fields: [attemptId], references: [id])
-  institute Institute?  @relation(fields: [instituteId], references: [id])
-  
-  @@index([certificateNo])
-  @@index([userId])
-  @@index([instituteId])
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// SECTION 6: CRM VERTICAL (Phase 2 - Minimal)
-// ══════════════════════════════════════════════════════════════════════════════
-
-model AgentProfile {
-  id                 String   @id @default(cuid())
-  userId             String   @unique
-  reraNumber         String?
-  reraCertificateUrl String?
-  company            String?
-  experience         Int?
-  specializations    String[] @default([])
-  languages          String[] @default([])
-  whatsapp           String?
-  website            String?
-  totalLeads         Int      @default(0)
-  totalDeals         Int      @default(0)
-  rating             Float    @default(0)
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// END OF SCHEMA
-// ══════════════════════════════════════════════════════════════════════════════

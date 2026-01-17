@@ -1,6 +1,6 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // PATH: prisma/seed.ts
-// REPLACE ENTIRE FILE WITH THIS:
+// Database seed with correct pricing
 // ══════════════════════════════════════════════════════════════════════════════
 
 import { PrismaClient, ConfigDataType } from '@prisma/client';
@@ -17,16 +17,20 @@ async function main() {
   
   const configs = [
     // PRICING
-    { key: 'exam_package_price', value: '750', label: 'Exam Package Price (₹)', description: 'Price for B2C exam package in INR', category: 'PRICING', dataType: ConfigDataType.NUMBER, isEditable: true, isPublic: true },
-    { key: 'exam_package_tests', value: '5', label: 'Tests Per Package', description: 'Number of mock tests included in package', category: 'PRICING', dataType: ConfigDataType.NUMBER, isEditable: true, isPublic: true },
+    { key: 'exam_package_price', value: '350', label: 'Revision & Mock Test Package Price (₹)', description: 'Price for B2C package (Revision Notes + 2 Mock Tests)', category: 'PRICING', dataType: ConfigDataType.NUMBER, isEditable: true, isPublic: true },
+    { key: 'exam_package_tests', value: '2', label: 'Tests Per Package', description: 'Number of mock tests included in package', category: 'PRICING', dataType: ConfigDataType.NUMBER, isEditable: true, isPublic: true },
+    { key: 'additional_test_price', value: '100', label: 'Additional Test Price (₹)', description: 'Price for additional mock test', category: 'PRICING', dataType: ConfigDataType.NUMBER, isEditable: true, isPublic: true },
     { key: 'exam_package_validity_days', value: '100', label: 'Package Validity (Days)', description: 'Number of days package remains valid after purchase', category: 'PRICING', dataType: ConfigDataType.NUMBER, isEditable: true, isPublic: true },
 
     // EXAM SETTINGS
     { key: 'exam_duration_minutes', value: '60', label: 'Exam Duration (Minutes)', description: 'Duration of mock test in minutes', category: 'EXAM', dataType: ConfigDataType.NUMBER, isEditable: true, isPublic: true },
     { key: 'exam_total_questions', value: '50', label: 'Total Questions', description: 'Number of questions per test', category: 'EXAM', dataType: ConfigDataType.NUMBER, isEditable: true, isPublic: true },
     { key: 'exam_passing_percentage', value: '40', label: 'Passing Percentage', description: 'Minimum percentage required to pass', category: 'EXAM', dataType: ConfigDataType.NUMBER, isEditable: true, isPublic: true },
+    { key: 'total_chapters', value: '11', label: 'Total Chapters', description: 'Number of chapters in revision notes', category: 'EXAM', dataType: ConfigDataType.NUMBER, isEditable: true, isPublic: true },
 
     // INSTITUTE SETTINGS
+    { key: 'institute_student_price', value: '500', label: 'Institute Student Price (₹)', description: 'Platform charges per student for institute exams', category: 'INSTITUTE', dataType: ConfigDataType.NUMBER, isEditable: true, isPublic: false },
+    { key: 'institute_student_mrp', value: '1000', label: 'Institute Student MRP (₹)', description: 'Suggested price institutes charge students', category: 'INSTITUTE', dataType: ConfigDataType.NUMBER, isEditable: true, isPublic: true },
     { key: 'default_revenue_share', value: '20', label: 'Default Revenue Share (%)', description: 'Default percentage of revenue shared with institutes', category: 'INSTITUTE', dataType: ConfigDataType.NUMBER, isEditable: true, isPublic: false },
     { key: 'max_batch_size', value: '50', label: 'Max Batch Size', description: 'Maximum students per batch', category: 'INSTITUTE', dataType: ConfigDataType.NUMBER, isEditable: true, isPublic: false },
     { key: 'certificate_prefix', value: 'RERA', label: 'Certificate Prefix', description: 'Prefix for certificate numbers (e.g., RERA-2025-00001)', category: 'INSTITUTE', dataType: ConfigDataType.STRING, isEditable: true, isPublic: false },
@@ -36,6 +40,15 @@ async function main() {
     { key: 'support_phone', value: '8850150878', label: 'Support Phone', description: 'Primary support contact number', category: 'PLATFORM', dataType: ConfigDataType.STRING, isEditable: true, isPublic: true },
     { key: 'support_phone_2', value: '9699091086', label: 'Support Phone 2', description: 'Secondary support contact number', category: 'PLATFORM', dataType: ConfigDataType.STRING, isEditable: true, isPublic: true },
     { key: 'support_email', value: 'estatemakers.in@gmail.com', label: 'Support Email', description: 'Support email address', category: 'PLATFORM', dataType: ConfigDataType.STRING, isEditable: true, isPublic: true },
+
+    // FEES (Agent Guide Page)
+    { key: 'training_fee', value: '5900', label: 'Training Fee (incl. GST)', description: 'MahaRERA agent training course fee', category: 'FEES', dataType: ConfigDataType.NUMBER, isEditable: true, isPublic: true },
+    { key: 'coc_exam_fee', value: '1500', label: 'COC Exam Fee', description: 'Certificate of Competence examination fee', category: 'FEES', dataType: ConfigDataType.NUMBER, isEditable: true, isPublic: true },
+    { key: 'rera_registration_fee', value: '11250', label: 'MahaRERA Registration Fee', description: 'MahaRERA agent registration fee', category: 'FEES', dataType: ConfigDataType.NUMBER, isEditable: true, isPublic: true },
+    
+    // INSTITUTE FEES (Internal - not public)
+    { key: 'institute_subscription_fee', value: '10000', label: 'Institute Annual Subscription', description: 'Annual fee for institute platform access', category: 'FEES', dataType: ConfigDataType.NUMBER, isEditable: true, isPublic: false },
+    { key: 'branch_subscription_fee', value: '5000', label: 'Branch Annual Subscription', description: 'Annual fee for additional branch locations', category: 'FEES', dataType: ConfigDataType.NUMBER, isEditable: true, isPublic: false },
 
     // PAYMENT
     { key: 'upi_id', value: 'vaishkamath@oksbi', label: 'UPI ID', description: 'UPI ID for receiving payments', category: 'PAYMENT', dataType: ConfigDataType.STRING, isEditable: true, isPublic: true },

@@ -89,7 +89,7 @@ export default function RevisionEditorPage() {
     setError("");
     
     try {
-      const res = await fetch(`/api/users/revision?chapterId=${selectedChapter}`);
+      const res = await fetch(`/api/user/revision?chapterId=${selectedChapter}`);
       if (!res.ok) throw new Error("Failed to load revisions");
       
       const data = await res.json();

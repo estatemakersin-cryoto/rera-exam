@@ -1,5 +1,6 @@
 import "./globals.css";
 import { LanguageProvider } from "@/app/providers/LanguageProvider";
+import { AuthProvider } from "@/contexts/AuthContext";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
@@ -26,9 +27,11 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head />
       <body suppressHydrationWarning>
-        <LanguageProvider>
-          {children}
-        </LanguageProvider>
+        <AuthProvider>
+          <LanguageProvider>
+            {children}
+          </LanguageProvider>
+        </AuthProvider>
       </body>
     </html>
   );

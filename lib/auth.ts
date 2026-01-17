@@ -1,9 +1,20 @@
 import { cookies } from "next/headers";
 import { SignJWT, jwtVerify, JWTPayload } from "jose";
 import bcrypt from "bcryptjs";
-import { UserRole } from "@prisma/client";
 
 const SECRET = new TextEncoder().encode(process.env.JWT_SECRET!);
+
+// ============================================
+// USER ROLES (must match Prisma enum)
+// ============================================
+
+export type UserRole = 
+  | "USER" 
+  | "ADMIN" 
+  | "SUPER_ADMIN" 
+  | "INSTITUTE_OWNER" 
+  | "INSTITUTE_STAFF"
+  | "AGENT";
 
 // ============================================
 // AUTH PAYLOAD (stored inside JWT)
@@ -15,7 +26,7 @@ export interface AuthPayload {
   mobile?: string | null;
   email?: string | null;
   isAdmin: boolean;
-  role?: UserRole;  // NEW: User role for new auth system
+  role?: UserRole;
   packagePurchased?: boolean | null;
 }
 
@@ -84,18 +95,36 @@ export async function requireUser() {
 }
 
 // ============================================
-// ROLE HELPERS (NEW)
+// ROLE HELPERS (Phase 2)
 // ============================================
 
-export function isAdminRole(role?: UserRole): boolean {
-  return role === 'SUPER_ADMIN' || role === 'ADMIN';
+export function isAdminRole(role?: UserRole | string): boolean {
+  return role === "SUPER_ADMIN" || role === "ADMIN";
 }
 
-export function isInstituteRole(role?: UserRole): boolean {
-  return role === 'INSTITUTE_OWNER' || role === 'INSTITUTE_STAFF';
+export function isInstituteRole(role?: UserRole | string): boolean {
+  return role === "INSTITUTE_OWNER" || role === "INSTITUTE_STAFF";
 }
 
-export function canAccessAdmin(session: AuthPayload | null): boolean {
-  if (!session) return false;
-  return session.isAdmin || isAdminRole(session.role);
+export async function requireInstitute() {
+  const session = await getSession();
+  if (!session || !isInstituteRole(session.role)) {
+    throw new Error("Institute access required");
+  }
+  return session;
+}
+
+export function getDashboardByRole(role?: UserRole | string): string {
+  switch (role) {
+    case "SUPER_ADMIN":
+    case "ADMIN":
+      return "/admin";
+    case "INSTITUTE_OWNER":
+    case "INSTITUTE_STAFF":
+      return "/institute/dashboard";
+    case "AGENT":
+      return "/agent/dashboard";
+    default:
+      return "/rera-exam/dashboard";
+  }
 }

@@ -1,21 +1,18 @@
+// ══════════════════════════════════════════════════════════════════════════════
+// PATH: app/api/payment/submit/route.ts
+// User submits payment proof after UPI payment
+// ══════════════════════════════════════════════════════════════════════════════
+
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { getConfig } from "@/lib/config";
-import * as XLSX from "xlsx";
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-async function requireUser() {
-  const session = await getSession();
-  if (!session) throw new Error("Auth required");
-  return session;
-}
-
 export async function POST(req: NextRequest) {
   try {
-    // Get session
     const session = await getSession();
     
     if (!session) {
@@ -25,8 +22,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Parse request body
-    const { transactionId, notes } = await req.json();
+    const { transactionId, notes, paymentType } = await req.json();
 
     if (!transactionId?.trim()) {
       return NextResponse.json(
@@ -35,15 +31,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const planType = "PREMIUM_PLAN";
-    const amount = await getConfig<number>("exam_package_price");
+    // Determine amount based on payment type
+    let amount: number;
+    let planType: string;
 
-    console.log("📝 Creating payment proof for user:", session.userId);
+    if (paymentType === "additional") {
+      amount = await getConfig<number>("additional_test_price") || 100;
+      planType = "ADDITIONAL_TEST";
+    } else {
+      amount = await getConfig<number>("exam_package_price") || 350;
+      planType = "PACKAGE";
+    }
 
-    // Create payment proof
+    console.log("📝 Creating payment proof:", { userId: session.userId, planType, amount });
+
     const payment = await prisma.paymentProof.create({
       data: {
-        userId: session.userId,           // ✅ session.userId is a String (cuid)
+        userId: session.userId,
         amount: amount,
         planType: planType,
         transactionId: transactionId.trim(),
@@ -52,7 +56,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    console.log("✅ Payment proof created successfully:", payment.id);
+    console.log("✅ Payment proof created:", payment.id);
 
     return NextResponse.json({
       success: true,
@@ -61,16 +65,10 @@ export async function POST(req: NextRequest) {
 
   } catch (err: any) {
     console.error("❌ Payment submit error:", err);
-    console.error("Error details:", {
-      code: err.code,
-      message: err.message,
-      meta: err.meta,
-    });
     
-    // Handle specific Prisma errors
     if (err.code === 'P2003') {
       return NextResponse.json(
-        { error: "User not found in database. Please logout and login again." },
+        { error: "User not found. Please logout and login again." },
         { status: 400 }
       );
     }
@@ -83,7 +81,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: err.message || "Failed to submit payment. Please try again." },
+      { error: err.message || "Failed to submit payment." },
       { status: 500 }
     );
   }

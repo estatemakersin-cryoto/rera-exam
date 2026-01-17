@@ -1,267 +1,290 @@
+// ══════════════════════════════════════════════════════════════════════════════
+// PATH: app/admin/payments/page.tsx
+// Admin Payment Approvals - Redirects to dashboard after action
+// ══════════════════════════════════════════════════════════════════════════════
+
 "use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-const ADMIN_WA_1 = "918850150878";
-const ADMIN_WA_2 = "919699091086";
+interface Payment {
+  id: string;
+  userId: string;
+  amount: number;
+  planType: string;
+  transactionId: string;
+  notes: string | null;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  createdAt: string;
+  user: {
+    fullName: string;
+    mobile: string;
+    email: string | null;
+  };
+}
 
-const UPI_ID = "vaishkamath@oksbi";
-const UPI_NAME = "Vaishali Kamath";
-const UPI_MOBILE = "9699091086";
+type TabType = "PENDING" | "APPROVED" | "REJECTED";
 
-export default function PaymentPage() {
+export default function AdminPaymentsPage() {
   const router = useRouter();
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [activeTab, setActiveTab] = useState<TabType>("PENDING");
+  const [processing, setProcessing] = useState<string | null>(null);
 
-  const [user, setUser] = useState<any>(null);
-  const [loadingUser, setLoadingUser] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [counts, setCounts] = useState({
+    PENDING: 0,
+    APPROVED: 0,
+    REJECTED: 0,
+  });
 
-  const amount = 750; // FIXED PREMIUM PRICE
-
-  const [transactionId, setTransactionId] = useState("");
-  const [notes, setNotes] = useState("");
-
-  // LOAD USER
   useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const res = await fetch("/api/auth/verify", { cache: "no-store" });
-        if (!res.ok) return router.push("/login");
+    loadPayments();
+  }, [activeTab]);
 
-        const data = await res.json();
-        setUser(data.user);
-      } catch {
-        router.push("/login");
-      } finally {
-        setLoadingUser(false);
-      }
-    };
-
-    loadUser();
-  }, [router]);
-
-  // SUBMIT PAYMENT
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!transactionId.trim()) {
-      alert("Please enter UPI Transaction ID / Reference No.");
-      return;
-    }
-
+  const loadPayments = async () => {
     try {
-      setSubmitting(true);
+      setLoading(true);
+      setError("");
 
-      const res = await fetch("/api/payment/submit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transactionId, notes }),
+      const res = await fetch(`/api/admin/payments?status=${activeTab}`, {
+        cache: "no-store",
       });
 
-      const data = await res.json();
-
       if (!res.ok) {
-        alert(data.error || "Failed to submit payment.");
-        return;
+        if (res.status === 401) {
+          router.push("/login");
+          return;
+        }
+        throw new Error("Failed to load payments");
       }
 
-      setSuccess(true);
-    } catch {
-      alert("Something went wrong. Please try again.");
+      const data = await res.json();
+      setPayments(data.payments || []);
+      setCounts(data.counts || { PENDING: 0, APPROVED: 0, REJECTED: 0 });
+    } catch (err: any) {
+      setError(err.message);
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   };
 
-  // ------------------------------
-  // LOADING STATE
-  // ------------------------------
-  if (loadingUser) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        Loading...
-      </div>
-    );
-  }
+  const handleAction = async (paymentId: string, action: "approve" | "reject") => {
+    if (!confirm(`Are you sure you want to ${action} this payment?`)) return;
 
-  // ------------------------------
-  // SUCCESS SCREEN
-  // ------------------------------
-  if (success) {
-    const msg =
-      `Payment submitted for EstateMakers MahaRERA ₹350 Plan:\n\n` +
-      `Name: ${user?.fullName}\n` +
-      `Mobile: ${user?.mobile}\n` +
-      `Plan: Premium – ₹350\n` +
-      `Amount: ₹${amount}\n` +
-      `UPI Ref: ${transactionId}\n\n` +
-      `Please verify and activate.`;
+    try {
+      setProcessing(paymentId);
 
+      const res = await fetch(`/api/admin/payments/${paymentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
 
-    const wa1 = `https://wa.me/${ADMIN_WA_1}?text=${encodeURIComponent(msg)}`;
-    const wa2 = `https://wa.me/${ADMIN_WA_2}?text=${encodeURIComponent(msg)}`;
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || `Failed to ${action} payment`);
+      }
 
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-6">
-        <div className="bg-green-100 border border-green-500 p-6 rounded-lg max-w-md text-center shadow">
-          <h2 className="font-bold text-xl text-green-800 mb-2">
-            Payment Submitted Successfully! ✅
-          </h2>
+      // Show success message
+      alert(`Payment ${action}d successfully!`);
 
-          <p className="text-green-700 text-sm mb-4">
-            Send your payment screenshot to admin for quick activation.
-          </p>
+      // Redirect to admin dashboard after action
+      router.push("/admin");
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setProcessing(null);
+    }
+  };
 
-          <a
-            href={wa1}
-            target="_blank"
-            className="block w-full px-4 py-2 mb-3 bg-blue-600 text-white rounded"
-          >
-            📤 Send to Admin 1 (8850150878)
-          </a>
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
-          <a
-            href={wa2}
-            target="_blank"
-            className="block w-full px-4 py-2 mb-3 bg-blue-600 text-white rounded"
-          >
-            📤 Send to Admin 2 (9699091086)
-          </a>
+  const getPlanLabel = (planType: string) => {
+    switch (planType) {
+      case "PACKAGE":
+        return "Revision & Mock Test Package";
+      case "ADDITIONAL_TEST":
+        return "Additional Mock Test";
+      case "PREMIUM_PLAN":
+        return "Revision & Mock Test Package"; // Legacy support
+      default:
+        return planType;
+    }
+  };
 
-          <button
-            onClick={() => router.push("/dashboard")}
-            className="w-full px-4 py-2 bg-gray-700 text-white rounded"
-          >
-            Go to Dashboard →
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ------------------------------
-  // MAIN PAYMENT PAGE
-  // ------------------------------
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-blue-900 text-white px-6 py-4 shadow">
-        <div className="max-w-4xl mx-auto flex justify-between items-center">
-          <h1 className="text-xl md:text-2xl font-bold">
-            Buy MahaRERA Premium Plan (₹350)
-          </h1>
-          <button
-            onClick={() => router.push("/dashboard")}
-            className="text-sm bg-blue-700 px-4 py-2 rounded hover:bg-blue-600"
-          >
-            ← Back to Dashboard
-          </button>
+    <div className="max-w-5xl mx-auto">
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">Payment Approvals</h1>
+        <p className="text-gray-500 text-sm">Review and approve user payments</p>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-2 mb-6">
+        <button
+          onClick={() => setActiveTab("PENDING")}
+          className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+            activeTab === "PENDING"
+              ? "bg-yellow-500 text-white"
+              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+          }`}
+        >
+          Pending ({counts.PENDING})
+        </button>
+        <button
+          onClick={() => setActiveTab("APPROVED")}
+          className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+            activeTab === "APPROVED"
+              ? "bg-green-500 text-white"
+              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+          }`}
+        >
+          Approved ({counts.APPROVED})
+        </button>
+        <button
+          onClick={() => setActiveTab("REJECTED")}
+          className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+            activeTab === "REJECTED"
+              ? "bg-red-500 text-white"
+              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+          }`}
+        >
+          Rejected ({counts.REJECTED})
+        </button>
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+          {error}
         </div>
-      </header>
+      )}
 
-      <main className="max-w-4xl mx-auto p-6 space-y-6">
-        {/* PAYMENT QR SECTION */}
-        <section className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg md:text-xl font-bold mb-4">
-            Step 1: Pay using UPI / QR
-          </h2>
-
-          <div className="grid md:grid-cols-2 gap-6 items-center">
-            {/* QR BLOCK */}
-            <div className="border rounded-lg p-4 bg-gray-50 text-center">
-              <p className="font-semibold mb-2">Scan & Pay</p>
-
-              <img
-                src="/vaishali-qr.png"
-                alt="UPI QR"
-                className="mx-auto w-48 h-48 object-contain border rounded-lg bg-white shadow"
-              />
-
-              <div className="text-sm text-gray-700 mt-3">
-                <p><strong>UPI Name:</strong> {UPI_NAME}</p>
-                <p><strong>UPI ID:</strong> {UPI_ID}</p>
-                <p><strong>Mobile:</strong> {UPI_MOBILE}</p>
-                <p><strong>Amount:</strong> ₹{amount}</p>
-              </div>
-
-              <p className="text-xs text-gray-500 mt-2">
-                Make sure you pay the exact amount before submitting.
-              </p>
-            </div>
-
-            {/* INFO BLOCK */}
-            <div className="bg-blue-50 border-l-4 border-blue-500 rounded p-4 text-sm text-gray-700">
-              <p className="font-semibold mb-2">Important:</p>
-              <ul className="space-y-1 list-disc pl-4">
-                <li>Complete payment through GPay / PhonePe / Paytm.</li>
-                <li>Copy the UPI Reference / Transaction ID.</li>
-                <li>Submit the details below for activation.</li>
-              </ul>
-            </div>
+      {/* Loading */}
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+            <p className="text-gray-500 text-sm">Loading payments...</p>
           </div>
-        </section>
-
-        {/* SUBMIT FORM */}
-        <section className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg md:text-xl font-bold mb-4">
-            Step 2: Submit Payment Details
-          </h2>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Plan
-              </label>
-              <input
-                type="text"
-                disabled
-                value="Premium Plan – ₹350"
-                className="w-full border rounded px-3 py-2 bg-gray-100 text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                UPI Transaction / Reference ID *
-              </label>
-              <input
-                type="text"
-                value={transactionId}
-                onChange={(e) => setTransactionId(e.target.value)}
-                placeholder="e.g. UTRXXXXXXXXX"
-                className="w-full border rounded px-3 py-2 text-sm"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Notes (optional)
-              </label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="GPay / Time / Any details"
-                className="w-full border rounded px-3 py-2 text-sm min-h-[80px]"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full md:w-auto px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-400"
+        </div>
+      ) : payments.length === 0 ? (
+        <div className="bg-white rounded-lg shadow p-12 text-center">
+          <svg
+            className="w-12 h-12 text-gray-300 mx-auto mb-3"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            />
+          </svg>
+          <p className="text-gray-500">No {activeTab.toLowerCase()} payments</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {payments.map((payment) => (
+            <div
+              key={payment.id}
+              className="bg-white rounded-lg shadow p-5 border-l-4 border-l-blue-500"
             >
-              {submitting ? "Submitting..." : "Submit Payment Details"}
-            </button>
+              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                {/* User Info */}
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="font-semibold text-gray-800 text-lg">
+                      {payment.user.fullName}
+                    </h3>
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded font-medium ${
+                        payment.status === "PENDING"
+                          ? "bg-yellow-100 text-yellow-700"
+                          : payment.status === "APPROVED"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-red-100 text-red-700"
+                      }`}
+                    >
+                      {payment.status}
+                    </span>
+                  </div>
 
-            <p className="text-xs text-gray-500 mt-2">
-              After admin verification, your Premium Plan will be activated.
-            </p>
-          </form>
-        </section>
-      </main>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
+                    <div>
+                      <span className="text-gray-500">Mobile:</span>{" "}
+                      <span className="text-gray-800">{payment.user.mobile}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Plan:</span>{" "}
+                      <span className="text-gray-800">{getPlanLabel(payment.planType)}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Amount:</span>{" "}
+                      <span className="text-gray-800 font-semibold">
+                        &#8377;{payment.amount}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Date:</span>{" "}
+                      <span className="text-gray-800">{formatDate(payment.createdAt)}</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-2 text-sm">
+                    <span className="text-gray-500">UPI Ref:</span>{" "}
+                    <code className="bg-gray-100 px-2 py-0.5 rounded text-gray-800">
+                      {payment.transactionId}
+                    </code>
+                  </div>
+
+                  {payment.notes && (
+                    <div className="mt-2 text-sm">
+                      <span className="text-gray-500">Notes:</span>{" "}
+                      <span className="text-gray-600 italic">{payment.notes}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Actions */}
+                {payment.status === "PENDING" && (
+                  <div className="flex gap-2 md:flex-col">
+                    <button
+                      onClick={() => handleAction(payment.id, "approve")}
+                      disabled={processing === payment.id}
+                      className="flex-1 md:flex-none px-4 py-2 bg-green-600 text-white rounded-lg font-medium text-sm hover:bg-green-700 disabled:bg-gray-400 transition-colors"
+                    >
+                      {processing === payment.id ? "..." : "Approve"}
+                    </button>
+                    <button
+                      onClick={() => handleAction(payment.id, "reject")}
+                      disabled={processing === payment.id}
+                      className="flex-1 md:flex-none px-4 py-2 bg-red-600 text-white rounded-lg font-medium text-sm hover:bg-red-700 disabled:bg-gray-400 transition-colors"
+                    >
+                      {processing === payment.id ? "..." : "Reject"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

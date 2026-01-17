@@ -161,14 +161,18 @@ export const CONFIG_KEYS = {
   // Pricing
   EXAM_PACKAGE_PRICE: 'exam_package_price',
   EXAM_PACKAGE_TESTS: 'exam_package_tests',
+  ADDITIONAL_TEST_PRICE: 'additional_test_price',
   EXAM_PACKAGE_VALIDITY_DAYS: 'exam_package_validity_days',
 
   // Exam Settings
   EXAM_DURATION_MINUTES: 'exam_duration_minutes',
   EXAM_TOTAL_QUESTIONS: 'exam_total_questions',
   EXAM_PASSING_PERCENTAGE: 'exam_passing_percentage',
+  TOTAL_CHAPTERS: 'total_chapters',
 
   // Institute Settings
+  INSTITUTE_STUDENT_PRICE: 'institute_student_price',
+  INSTITUTE_STUDENT_MRP: 'institute_student_mrp',
   DEFAULT_REVENUE_SHARE: 'default_revenue_share',
   MAX_BATCH_SIZE: 'max_batch_size',
   CERTIFICATE_PREFIX: 'certificate_prefix',
@@ -179,6 +183,14 @@ export const CONFIG_KEYS = {
   SUPPORT_EMAIL: 'support_email',
   UPI_ID: 'upi_id',
   UPI_NAME: 'upi_name',
+  UPI_PHONE: 'upi_phone',
+  
+  // Fees
+  TRAINING_FEE: 'training_fee',
+  COC_EXAM_FEE: 'coc_exam_fee',
+  RERA_REGISTRATION_FEE: 'rera_registration_fee',
+  INSTITUTE_SUBSCRIPTION_FEE: 'institute_subscription_fee',
+  BRANCH_SUBSCRIPTION_FEE: 'branch_subscription_fee',
 } as const;
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -186,11 +198,15 @@ export const CONFIG_KEYS = {
 // ══════════════════════════════════════════════════════════════════════════════
 
 export async function getExamPackagePrice(): Promise<number> {
-  return getConfigOrDefault(CONFIG_KEYS.EXAM_PACKAGE_PRICE, 750);
+  return getConfigOrDefault(CONFIG_KEYS.EXAM_PACKAGE_PRICE, 350);
 }
 
 export async function getExamPackageTests(): Promise<number> {
-  return getConfigOrDefault(CONFIG_KEYS.EXAM_PACKAGE_TESTS, 5);
+  return getConfigOrDefault(CONFIG_KEYS.EXAM_PACKAGE_TESTS, 2);
+}
+
+export async function getAdditionalTestPrice(): Promise<number> {
+  return getConfigOrDefault(CONFIG_KEYS.ADDITIONAL_TEST_PRICE, 100);
 }
 
 export async function getExamDuration(): Promise<number> {
@@ -205,6 +221,18 @@ export async function getPassingPercentage(): Promise<number> {
   return getConfigOrDefault(CONFIG_KEYS.EXAM_PASSING_PERCENTAGE, 40);
 }
 
+export async function getTotalChapters(): Promise<number> {
+  return getConfigOrDefault(CONFIG_KEYS.TOTAL_CHAPTERS, 11);
+}
+
 export async function getDefaultRevenueShare(): Promise<number> {
   return getConfigOrDefault(CONFIG_KEYS.DEFAULT_REVENUE_SHARE, 20);
+}
+
+export async function getInstituteStudentPrice(): Promise<number> {
+  return getConfigOrDefault(CONFIG_KEYS.INSTITUTE_STUDENT_PRICE, 500);
+}
+
+export async function getInstituteStudentMRP(): Promise<number> {
+  return getConfigOrDefault(CONFIG_KEYS.INSTITUTE_STUDENT_MRP, 1000);
 }

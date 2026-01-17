@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -14,16 +15,37 @@ export default function RegisterPage() {
     mobile: "",
     password: "",
     confirmPassword: "",
-    referralCode: "",
+    referredBy: "",
   });
 
   const [showPassword, setShowPassword] = useState(false);
   const [showPassword2, setShowPassword2] = useState(false);
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSubmit = async (e: any) => {
+  // Get referral code once
+  const [refCode, setRefCode] = useState("");
+
+  // Pick referral code from URL
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const ref = params.get("ref");
+
+      console.log("Referral from URL:", ref);
+
+      if (ref && ref.trim() !== "") {
+        const code = ref.toUpperCase();
+        setRefCode(code);
+        setFormData((prev) => ({
+          ...prev,
+          referredBy: code,
+        }));
+      }
+    }
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
@@ -34,11 +56,23 @@ export default function RegisterPage() {
       return;
     }
 
+    if (formData.password.length < 6) {
+      setError("Password must be at least 6 characters");
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          fullName: formData.fullName,
+          email: formData.email,
+          mobile: formData.mobile,
+          password: formData.password,
+          referredBy: formData.referredBy || null,
+        }),
       });
 
       const data = await res.json();
@@ -46,96 +80,109 @@ export default function RegisterPage() {
       if (!res.ok) {
         setError(data.error || "Registration failed");
       } else {
-        alert("Registration successful!");
+        alert("Registration successful! Please login.");
         router.push("/login");
       }
     } catch {
-      setError("Network error");
+      setError("Network error. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-blue-900 p-6">
-      <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+    <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6">
+      <div className="text-center mb-5">
+        <h1 className="text-2xl font-bold text-blue-800">Create Account</h1>
+        <p className="text-gray-500 text-sm">MahaRERA Mock Test Platform</p>
+      </div>
 
-        <h1 className="text-3xl font-bold text-center text-blue-800 mb-6">Register</h1>
+      {refCode && (
+        <div className="bg-green-50 border border-green-300 text-green-700 px-3 py-2 rounded-lg mb-4 text-sm text-center">
+          🎁 Referral <strong>{refCode.toUpperCase()}</strong> applied!
+        </div>
+      )}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <div>
+          <label className="block mb-1 text-xs font-medium text-gray-600">
+            Full Name *
+          </label>
+          <input
+            type="text"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            value={formData.fullName}
+            onChange={(e) =>
+              setFormData({ ...formData, fullName: e.target.value })
+            }
+            required
+          />
+        </div>
 
-          {/* Full Name */}
+        <div>
+          <label className="block mb-1 text-xs font-medium text-gray-600">
+            Email *
+          </label>
+          <input
+            type="email"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            value={formData.email}
+            onChange={(e) =>
+              setFormData({ ...formData, email: e.target.value })
+            }
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block mb-1 text-xs font-medium text-gray-600">
+            Mobile *
+          </label>
+          <input
+            type="tel"
+            pattern="[0-9]{10}"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            value={formData.mobile}
+            onChange={(e) =>
+              setFormData({ ...formData, mobile: e.target.value })
+            }
+            required
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block mb-1 font-semibold">Full Name</label>
-            <input
-              type="text"
-              className="w-full border rounded p-3"
-              value={formData.fullName}
-              onChange={(e) =>
-                setFormData({ ...formData, fullName: e.target.value })
-              }
-              required
-            />
-          </div>
-
-          {/* Email */}
-          <div>
-            <label className="block mb-1 font-semibold">Email</label>
-            <input
-              type="email"
-              className="w-full border rounded p-3"
-              value={formData.email}
-              onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
-              }
-              required
-            />
-          </div>
-
-          {/* Mobile */}
-          <div>
-            <label className="block mb-1 font-semibold">Mobile</label>
-            <input
-              type="tel"
-              className="w-full border rounded p-3"
-              value={formData.mobile}
-              onChange={(e) =>
-                setFormData({ ...formData, mobile: e.target.value })
-              }
-            />
-          </div>
-
-          {/* Password */}
-          <div>
-            <label className="block mb-1 font-semibold">Password</label>
-
+            <label className="block mb-1 text-xs font-medium text-gray-600">
+              Password *
+            </label>
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
-                className="w-full border rounded p-3"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 pr-9 text-sm"
                 value={formData.password}
                 onChange={(e) =>
                   setFormData({ ...formData, password: e.target.value })
                 }
                 required
               />
-              <span
-                className="absolute right-3 top-3 cursor-pointer"
+              <button
+                type="button"
+                className="absolute right-2 top-2"
                 onClick={() => setShowPassword(!showPassword)}
               >
-                {showPassword ? <EyeOff /> : <Eye />}
-              </span>
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
           </div>
 
-          {/* Confirm Password */}
           <div>
-            <label className="block mb-1 font-semibold">Confirm Password</label>
-
+            <label className="block mb-1 text-xs font-medium text-gray-600">
+              Confirm *
+            </label>
             <div className="relative">
               <input
                 type={showPassword2 ? "text" : "password"}
-                className="w-full border rounded p-3"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 pr-9 text-sm"
                 value={formData.confirmPassword}
                 onChange={(e) =>
                   setFormData({
@@ -145,48 +192,78 @@ export default function RegisterPage() {
                 }
                 required
               />
-              <span
-                className="absolute right-3 top-3 cursor-pointer"
+              <button
+                type="button"
+                className="absolute right-2 top-2"
                 onClick={() => setShowPassword2(!showPassword2)}
               >
-                {showPassword2 ? <EyeOff /> : <Eye />}
-              </span>
+                {showPassword2 ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
           </div>
+        </div>
 
-          {/* Referral */}
-          <div>
-            <label className="block mb-1 font-semibold">Referral Code</label>
-            <input
-              type="text"
-              className="w-full border rounded p-3"
-              value={formData.referralCode}
-              onChange={(e) =>
-                setFormData({ ...formData, referralCode: e.target.value })
-              }
-            />
+        {/* Referral Code */}
+        <div>
+          <label className="block mb-1 text-xs font-medium text-gray-600">
+            Referral Code
+          </label>
+          <input
+            type="text"
+            readOnly={!!refCode}
+            className={`w-full border rounded-lg px-3 py-2 text-sm ${
+              formData.referredBy
+                ? "border-green-400 bg-green-50"
+                : "border-gray-300"
+            } ${refCode ? "cursor-not-allowed" : ""}`}
+            value={formData.referredBy}
+            placeholder="Optional"
+            onChange={(e) =>
+              setFormData({
+                ...formData,
+                referredBy: e.target.value.toUpperCase(),
+              })
+            }
+          />
+        </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-300 text-red-600 px-3 py-2 rounded-lg text-sm">
+            {error}
           </div>
+        )}
 
-          {error && (
-            <div className="bg-red-100 text-red-700 p-3 rounded">{error}</div>
-          )}
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-semibold text-sm"
+        >
+          {loading ? "Creating..." : "Create Account"}
+        </button>
+      </form>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white p-3 rounded font-semibold"
-          >
-            {loading ? "Registering..." : "Register"}
-          </button>
-        </form>
+      <p className="text-center text-sm mt-4 text-gray-500">
+        Already registered?{" "}
+        <Link href="/login" className="text-blue-600 font-semibold">
+          Login
+        </Link>
+      </p>
+    </div>
+  );
+}
 
-        <p className="text-center text-sm mt-4">
-          Already have an account?{" "}
-          <Link href="/login" className="text-blue-700 font-bold">
-            Login
-          </Link>
-        </p>
-      </div>
+export default function RegisterPage() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-blue-900 p-4">
+      <Suspense
+        fallback={
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 text-center">
+            Loading...
+          </div>
+        }
+      >
+        <RegisterForm />
+      </Suspense>
     </div>
   );
 }

@@ -198,16 +198,28 @@ export async function POST(req: NextRequest) {
     if (contentType?.includes("application/json")) {
       const body = await req.json();
       
-      // Handle both array and object with data property
+      // Handle multiple JSON formats
       if (Array.isArray(body)) {
         items = body;
       } else if (Array.isArray(body.data)) {
         items = body.data;
+      } else if (Array.isArray(body.data?.chapters)) {
+        items = body.data.chapters;
+      } else if (Array.isArray(body.data?.questions)) {
+        items = body.data.questions;
+      } else if (Array.isArray(body.data?.revisions)) {
+        items = body.data.revisions;
+      } else if (Array.isArray(body.chapters)) {
+        items = body.chapters;
+      } else if (Array.isArray(body.questions)) {
+        items = body.questions;
+      } else if (Array.isArray(body.revisions)) {
+        items = body.revisions;
       } else if (body.data) {
         items = [body.data];
       } else {
         return NextResponse.json(
-          { error: "Invalid JSON format. Expected array or object with 'data' property." },
+          { error: "Invalid JSON format. Expected array or wrapped object like { chapters: [...] }" },
           { status: 400 }
         );
       }
