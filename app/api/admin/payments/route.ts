@@ -14,11 +14,11 @@ export async function GET(req: NextRequest) {
     await requireAdmin();
 
     const { searchParams } = new URL(req.url);
-    const status = searchParams.get("status") || "PENDING";
+    const status = searchParams.get("status") as "PENDING" | "APPROVED" | "REJECTED" | null;
 
     // Get payments with user info
     const payments = await prisma.paymentProof.findMany({
-      where: status ? { status: status as "PENDING" | "APPROVED" | "REJECTED" } : {},
+      where: status ? { status } : {},
       orderBy: { createdAt: "desc" },
       include: {
         user: {
