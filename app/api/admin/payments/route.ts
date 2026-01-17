@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
 
     // Get payments with user info
     const payments = await prisma.paymentProof.findMany({
-      where: { status },
+      where: status ? { status: status as "PENDING" | "APPROVED" | "REJECTED" } : {},
       orderBy: { createdAt: "desc" },
       include: {
         user: {
