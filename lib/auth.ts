@@ -26,7 +26,7 @@ export interface AuthPayload {
   mobile?: string | null;
   email?: string | null;
   isAdmin: boolean;
-  role?: UserRole;
+  role?: string;
   packagePurchased?: boolean | null;
 }
 

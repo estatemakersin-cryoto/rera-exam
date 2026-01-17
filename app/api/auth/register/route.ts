@@ -73,7 +73,7 @@ export async function POST(req: Request) {
       email: user.email,
       mobile: user.mobile,
       isAdmin: user.isAdmin,
-      role: user.role,
+      role: user.role as string,
       packagePurchased: user.packagePurchased,
     };
 

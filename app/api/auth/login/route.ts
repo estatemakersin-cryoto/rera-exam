@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
       mobile: user.mobile,
       email: user.email,
       isAdmin: user.isAdmin,
-      role: user.role,
+      role: user.role as any,
       packagePurchased: user.packagePurchased,
     });
 
