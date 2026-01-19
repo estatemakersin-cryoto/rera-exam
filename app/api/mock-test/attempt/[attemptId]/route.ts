@@ -29,30 +29,55 @@ export async function GET(
     }
 
     // ------------------------------------------
-    // CASE 1 — IN PROGRESS (Generate questions)
+    // CASE 1 — IN PROGRESS (Generate questions if needed)
     // ------------------------------------------
     if (attempt.status === "IN_PROGRESS") {
-      const total = attempt.totalQuestions;
+      // If responses already exist, use them
+      if (attempt.responses.length > 0) {
+        const questions = attempt.responses.map((r) => ({
+          responseId: r.id,
+          questionId: r.question.id,
+          questionEn: r.question.questionEn,
+          questionMr: r.question.questionMr,
+          optionAEn: r.question.optionAEn,
+          optionAMr: r.question.optionAMr,
+          optionBEn: r.question.optionBEn,
+          optionBMr: r.question.optionBMr,
+          optionCEn: r.question.optionCEn,
+          optionCMr: r.question.optionCMr,
+          optionDEn: r.question.optionDEn,
+          optionDMr: r.question.optionDMr,
+          userAnswer: r.userAnswer,
+          correctAnswer: r.question.correctAnswer,
+        }));
 
+        return NextResponse.json({
+          attempt: {
+            id: attempt.id,
+            startTime: attempt.startTime.toISOString(),
+            totalQuestions: attempt.totalQuestions,
+            testNumber: (attempt.user?.testsCompleted || 0) + 1,
+            status: attempt.status,
+          },
+          questions,
+        });
+      }
+
+      // Generate new questions
+      const total = attempt.totalQuestions;
       const easyCount = Math.floor(total * 0.3);
       const moderateCount = Math.floor(total * 0.5);
       const hardCount = total - easyCount - moderateCount;
 
       // Fetch questions by difficulty
-      const easy = await prisma.question.findMany({
-        where: { difficulty: "EASY" },
-      });
-
-      const moderate = await prisma.question.findMany({
-        where: { difficulty: "MODERATE" },
-      });
-
-      const hard = await prisma.question.findMany({
-        where: { difficulty: "HARD" },
-      });
+      const [easy, moderate, hard] = await Promise.all([
+        prisma.question.findMany({ where: { difficulty: "EASY", isActive: true } }),
+        prisma.question.findMany({ where: { difficulty: "MODERATE", isActive: true } }),
+        prisma.question.findMany({ where: { difficulty: "HARD", isActive: true } }),
+      ]);
 
       // Helper function to randomly pick unique items
-      function pickRandom(list: any[], count: number) {
+      function pickRandom<T>(list: T[], count: number): T[] {
         return list
           .map((q) => ({ q, sort: Math.random() }))
           .sort((a, b) => a.sort - b.sort)
@@ -69,41 +94,35 @@ export async function GET(
       // If shortage in any category → fill balance from all
       if (selected.length < total) {
         const all = [...easy, ...moderate, ...hard];
-        const remaining = total - selected.length;
-
-        const extra = pickRandom(all, remaining);
-
-        // Avoid duplicates
-        const ids = new Set(selected.map((q) => q.id));
-        extra.forEach((q) => {
-          if (!ids.has(q.id)) selected.push(q);
-        });
+        const selectedIds = new Set(selected.map((q: any) => q.id));
+        const remaining = all.filter((q) => !selectedIds.has(q.id));
+        const extra = pickRandom(remaining, total - selected.length);
+        selected = [...selected, ...extra];
       }
 
       // Final shuffle
-      selected = selected
-        .map((x) => ({ x, sort: Math.random() }))
-        .sort((a, b) => a.sort - b.sort)
-        .map((obj) => obj.x);
+      selected = pickRandom(selected, selected.length);
 
-      // Update attempt responses (clear old & insert new)
+      // Delete old responses and create new ones using createMany (single connection)
       await prisma.response.deleteMany({
         where: { attemptId: attempt.id },
       });
 
-      const responses = await Promise.all(
-        selected.map((q) =>
-          prisma.response.create({
-            data: {
-              attemptId: attempt.id,
-              questionId: q.id,
-            },
-            include: { question: true },
-          })
-        )
-      );
+      // ✅ Use createMany instead of parallel creates
+      await prisma.response.createMany({
+        data: selected.map((q: any) => ({
+          attemptId: attempt.id,
+          questionId: q.id,
+        })),
+      });
 
-      // Prepare return structure
+      // Fetch the created responses with questions
+      const responses = await prisma.response.findMany({
+        where: { attemptId: attempt.id },
+        include: { question: true },
+        orderBy: { createdAt: "asc" },
+      });
+
       const questions = responses.map((r) => ({
         responseId: r.id,
         questionId: r.question.id,
@@ -127,7 +146,7 @@ export async function GET(
           startTime: attempt.startTime.toISOString(),
           totalQuestions: attempt.totalQuestions,
           testNumber: (attempt.user?.testsCompleted || 0) + 1,
-          status: attempt.status, // ✅ CRITICAL: status field must be included
+          status: attempt.status,
         },
         questions,
       });
@@ -164,7 +183,7 @@ export async function GET(
           startTime: attempt.startTime.toISOString(),
           endTime: attempt.endTime?.toISOString(),
           testNumber: (attempt.user?.testsCompleted || 0) + 1,
-          status: attempt.status, // ✅ CRITICAL: status field must be included
+          status: attempt.status,
         },
         questions,
       });
