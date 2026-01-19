@@ -254,7 +254,11 @@ export async function POST(req: NextRequest) {
       if (type === "mcq") {
         const workbook = XLSX.read(buffer, { type: "array" });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        items = XLSX.utils.sheet_to_json<Record<string, any>>(sheet);
+        // raw: false preserves formatted strings like "5%" instead of converting to 0.05
+        items = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { 
+          raw: false, 
+          defval: "" 
+        });
       } else {
         try {
           const json = JSON.parse(Buffer.from(buffer).toString("utf-8"));
