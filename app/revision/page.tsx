@@ -5,9 +5,9 @@
 
 "use client";
 
-import { useState, useEffect, ReactNode } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 interface Chapter {
@@ -39,6 +39,31 @@ interface QAItem {
 }
 
 // ════════════════════════════════════════════════════════════════════════════════
+// TABLE COMPONENTS FOR REACT-MARKDOWN (Typed correctly)
+// ════════════════════════════════════════════════════════════════════════════════
+const tableComponents: Components = {
+  table: ({ children }) => (
+    <div className="overflow-x-auto my-4">
+      <table className="w-full border-collapse border border-gray-300 min-w-[500px]">
+        {children}
+      </table>
+    </div>
+  ),
+  thead: ({ children }) => (
+    <thead className="bg-blue-600 text-white">{children}</thead>
+  ),
+  th: ({ children }) => (
+    <th className="border border-gray-300 px-4 py-3 text-left font-semibold">{children}</th>
+  ),
+  td: ({ children }) => (
+    <td className="border border-gray-300 px-4 py-3 bg-white">{children}</td>
+  ),
+  tr: ({ children }) => (
+    <tr className="even:bg-gray-50">{children}</tr>
+  ),
+};
+
+// ════════════════════════════════════════════════════════════════════════════════
 // COLLAPSIBLE NOTES COMPONENT - Renders ## headings as expandable sections
 // ════════════════════════════════════════════════════════════════════════════════
 function CollapsibleNotes({ content }: { content: string; language: "en" | "mr" }) {
@@ -55,29 +80,6 @@ function CollapsibleNotes({ content }: { content: string; language: "en" | "mr" 
 
   const expandAll = () => setOpenSections(sections.map((_, i) => i));
   const collapseAll = () => setOpenSections([]);
-
-  // Table components for ReactMarkdown
-  const tableComponents = {
-    table: ({ children }: { children: ReactNode }) => (
-      <div className="overflow-x-auto my-4">
-        <table className="w-full border-collapse border border-gray-300 min-w-[500px]">
-          {children}
-        </table>
-      </div>
-    ),
-    thead: ({ children }: { children: ReactNode }) => (
-      <thead className="bg-blue-600 text-white">{children}</thead>
-    ),
-    th: ({ children }: { children: ReactNode }) => (
-      <th className="border border-gray-300 px-4 py-3 text-left font-semibold">{children}</th>
-    ),
-    td: ({ children }: { children: ReactNode }) => (
-      <td className="border border-gray-300 px-4 py-3 bg-white">{children}</td>
-    ),
-    tr: ({ children }: { children: ReactNode }) => (
-      <tr className="even:bg-gray-50">{children}</tr>
-    ),
-  };
 
   // If no sections (no ## headings), render as plain markdown
   if (sections.length <= 1) {
@@ -295,7 +297,7 @@ export default function UserRevisionPage() {
           router.push("/login");
           return;
         }
-      } catch (err) {
+      } catch {
         router.push("/login");
       }
     };
@@ -329,9 +331,8 @@ export default function UserRevisionPage() {
         );
         setSelectedChapter(sorted[0].id);
       }
-    } catch (err) {
+    } catch {
       setError("Failed to load chapters");
-      console.error(err);
     }
   };
 
