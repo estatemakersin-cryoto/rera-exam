@@ -1,124 +1,128 @@
-// app/api/admin/revision/route.ts
-
-import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/auth";
 
-// GET - List all revisions (optional filter by chapterId)
-export async function GET(req: NextRequest) {
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+// GET - List all revisions (optionally filter by chapter)
+export async function GET(request: NextRequest) {
   try {
-    const chapterId = req.nextUrl.searchParams.get("chapterId");
+    await requireAdmin();
+
+    const { searchParams } = new URL(request.url);
+    const chapterId = searchParams.get("chapterId");
+
+    const where = chapterId ? { chapterId: parseInt(chapterId) } : {};
 
     const revisions = await prisma.revisionContent.findMany({
-      where: chapterId ? { chapterId: Number(chapterId) } : undefined,
-      orderBy: [{ chapterId: "asc" }, { order: "asc" }],
+      where,
+      orderBy: [
+        { chapterId: "asc" },
+        { order: "asc" },
+      ],
       include: {
         chapter: {
-          select: { id: true, chapterNumber: true, titleEn: true },
+          select: {
+            id: true,
+            chapterNumber: true,
+            titleEn: true,
+            titleMr: true,
+          },
         },
       },
     });
 
-    return NextResponse.json({ revisions });
-  } catch (error) {
-    console.error("GET revisions error:", error);
-    return NextResponse.json({ error: "Failed to fetch revisions" }, { status: 500 });
+    return NextResponse.json({ success: true, revisions });
+  } catch (err: any) {
+    console.error("Revisions GET error:", err);
+
+    if (err.message === "Admin access required") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    return NextResponse.json(
+      { error: "Failed to load revisions" },
+      { status: 500 }
+    );
   }
 }
 
-// POST - Create new revision(s)
-export async function POST(req: NextRequest) {
+// POST - Create new revision
+export async function POST(request: NextRequest) {
   try {
-    const body = await req.json();
+    await requireAdmin();
 
-    // Support both single object and array (bulk upload)
-    const items = Array.isArray(body) ? body : [body];
-    const created = [];
-    const skipped = [];
-
-    // Get all chapters for lookup
-    const allChapters = await prisma.chapter.findMany({
-      select: { id: true, chapterNumber: true, titleEn: true }
-    });
+    const body = await request.json();
     
-    const chapterMap = new Map(allChapters.map(ch => [ch.chapterNumber, ch]));
+    console.log("📝 Creating revision:", body);
 
-    for (const item of items) {
-      let chapter = null;
-
-      // ALWAYS prioritize chapterNumber lookup (this prevents ID mismatch issues)
-      if (item.chapterNumber !== undefined) {
-        chapter = chapterMap.get(item.chapterNumber);
-        
-        if (!chapter) {
-          console.warn(`Chapter number ${item.chapterNumber} not found, skipping: ${item.titleEn}`);
-          skipped.push({
-            title: item.titleEn || "Unknown",
-            reason: `Chapter number ${item.chapterNumber} not found`
-          });
-          continue;
-        }
-      } else if (item.chapterId) {
-        // Fallback: verify chapterId exists
-        chapter = allChapters.find(ch => ch.id === item.chapterId);
-        
-        if (!chapter) {
-          console.warn(`Chapter ID ${item.chapterId} not found, skipping: ${item.titleEn}`);
-          skipped.push({
-            title: item.titleEn || "Unknown", 
-            reason: `Chapter ID ${item.chapterId} not found`
-          });
-          continue;
-        }
-      } else {
-        console.warn("No chapter reference provided, skipping:", item.titleEn);
-        skipped.push({
-          title: item.titleEn || "Unknown",
-          reason: "No chapterNumber or chapterId provided"
-        });
-        continue;
-      }
-
-      // Validate required fields
-      if (!item.titleEn || !item.titleMr) {
-        skipped.push({
-          title: item.titleEn || "Unknown",
-          reason: "Missing titleEn or titleMr"
-        });
-        continue;
-      }
-
-      const revision = await prisma.revisionContent.create({
-        data: {
-          chapterId: chapter.id,  // Always use the verified chapter.id
-          titleEn: item.titleEn,
-          titleMr: item.titleMr,
-          contentEn: item.contentEn || null,
-          contentMr: item.contentMr || null,
-          imageUrl: item.imageUrl || null,
-          videoUrl: item.videoUrl || null,
-          qaJson: item.qaJson || [],
-          order: item.order ?? 0,
-        },
-      });
-
-      created.push(revision);
-      console.log(`✅ Created revision for Chapter ${chapter.chapterNumber}: ${item.titleEn}`);
+    // Validate required fields
+    if (!body.chapterId) {
+      return NextResponse.json(
+        { error: "Chapter ID is required" },
+        { status: 400 }
+      );
     }
+
+    if (!body.titleEn?.trim()) {
+      return NextResponse.json(
+        { error: "Title (English) is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!body.titleMr?.trim()) {
+      return NextResponse.json(
+        { error: "Title (Marathi) is required" },
+        { status: 400 }
+      );
+    }
+
+    // Check if chapter exists
+    const chapter = await prisma.chapter.findUnique({
+      where: { id: parseInt(body.chapterId) },
+    });
+
+    if (!chapter) {
+      return NextResponse.json(
+        { error: "Chapter not found" },
+        { status: 404 }
+      );
+    }
+
+    // Create the revision
+    const revision = await prisma.revisionContent.create({
+      data: {
+        chapterId: parseInt(body.chapterId),
+        titleEn: body.titleEn.trim(),
+        titleMr: body.titleMr.trim(),
+        contentEn: body.contentEn || null,
+        contentMr: body.contentMr || null,
+        imageUrl: body.imageUrl || null,
+        videoUrl: body.videoUrl || null,
+        qaJson: body.qaJson || [],
+        order: body.order ?? 0,
+      },
+    });
+
+    console.log("✅ Revision created:", revision.id);
 
     return NextResponse.json({
       success: true,
-      message: `Created ${created.length} revision(s)${skipped.length > 0 ? `, skipped ${skipped.length}` : ''}`,
-      details: {
-        inserted: created.length,
-        skipped: skipped.length,
-        skippedItems: skipped,
-        availableChapters: allChapters.map(ch => ch.chapterNumber).sort((a, b) => a - b)
-      },
-      revisions: created,
-    }, { status: 201 });
+      message: "Revision created successfully",
+      revision,
+    });
+  } catch (err: any) {
+    console.error("Revision POST error:", err);
 
-  } catch (error) {
-    console.error("POST revision error:", error);
-    return NextResponse.json({ error: "Failed to create revision" }, { status: 500 });
+    if (err.message === "Admin access required") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    return NextResponse.json(
+      { error: "Failed to create revision" },
+      { status: 500 }
+    );
   }
 }

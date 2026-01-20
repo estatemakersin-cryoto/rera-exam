@@ -6,6 +6,88 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 /* ============================================
+   EXCEL DATE CONVERTER - IMPROVED
+   Excel stores dates as serial numbers (days since 1900-01-01)
+============================================ */
+function excelDateToString(value: any): string {
+  // If it's already a string that doesn't look like a number, return as-is
+  if (typeof value === 'string' && isNaN(parseFloat(value))) {
+    return value;
+  }
+  
+  // Convert to number if it's a string
+  const numValue = typeof value === 'number' ? value : parseFloat(value);
+  
+  // Check if it's a valid Excel date serial (between 1 and 60000)
+  // Excel dates range from 1 (Jan 1, 1900) to ~50000+ (year 2037+)
+  if (!isNaN(numValue) && numValue > 1000 && numValue < 100000) {
+    try {
+      // Excel epoch is January 1, 1900
+      // But Excel incorrectly considers 1900 as a leap year, so we subtract 2
+      const excelEpoch = new Date(1900, 0, 1);
+      const date = new Date(excelEpoch.getTime() + (numValue - 2) * 24 * 60 * 60 * 1000);
+      
+      // Check if it's a valid date
+      if (!isNaN(date.getTime())) {
+        // Format as "25 March 2016"
+        return date.toLocaleDateString('en-IN', { 
+          day: 'numeric', 
+          month: 'long', 
+          year: 'numeric' 
+        });
+      }
+    } catch (e) {
+      // If conversion fails, return original value as string
+      return String(value);
+    }
+  }
+  
+  return String(value);
+}
+
+/* ============================================
+   CHECK IF VALUE IS EXCEL DATE
+============================================ */
+function isExcelDateSerial(value: any): boolean {
+  const numValue = typeof value === 'number' ? value : parseFloat(String(value));
+  // Excel date serials for reasonable dates (1950-2050) are roughly 18000-55000
+  return !isNaN(numValue) && numValue > 10000 && numValue < 60000;
+}
+
+/* ============================================
+   SMART VALUE CONVERTER - IMPROVED
+   Detects and converts Excel date serials in any field
+============================================ */
+function smartConvertValue(value: any, fieldName: string): string {
+  if (value === null || value === undefined || value === "") {
+    return "";
+  }
+
+  // Convert to string first
+  let strValue = String(value);
+  
+  // Check if it looks like an Excel date serial number
+  // Pattern: number with many decimals like "42439.00011574074"
+  if (isExcelDateSerial(value)) {
+    return excelDateToString(value);
+  }
+  
+  // Also check for string representation of Excel dates
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    // Check if string looks like a decimal number that could be an Excel date
+    if (/^\d{5}(\.\d+)?$/.test(trimmed)) {
+      const numValue = parseFloat(trimmed);
+      if (isExcelDateSerial(numValue)) {
+        return excelDateToString(numValue);
+      }
+    }
+  }
+  
+  return strValue;
+}
+
+/* ============================================
    SMART MCQ FORMAT CONVERTER
 ============================================ */
 function smartConvertMCQ(item: any): any {
@@ -31,24 +113,25 @@ function smartConvertMCQ(item: any): any {
     converted.questionMr = item.questionMr ?? item.questionMarathi ?? item.qMr ?? null;
   }
 
+  // Process options with date conversion
   if (item.options && typeof item.options === 'object' && !Array.isArray(item.options)) {
     const opts = item.options;
     
     if (opts.A && typeof opts.A === 'object') {
-      converted.optionAEn = String(opts.A.en ?? opts.A.english ?? opts.A);
-      converted.optionAMr = opts.A.mr ?? opts.A.marathi ?? null;
-      converted.optionBEn = String(opts.B?.en ?? opts.B?.english ?? opts.B ?? "");
-      converted.optionBMr = opts.B?.mr ?? opts.B?.marathi ?? null;
-      converted.optionCEn = String(opts.C?.en ?? opts.C?.english ?? opts.C ?? "");
-      converted.optionCMr = opts.C?.mr ?? opts.C?.marathi ?? null;
-      converted.optionDEn = String(opts.D?.en ?? opts.D?.english ?? opts.D ?? "");
-      converted.optionDMr = opts.D?.mr ?? opts.D?.marathi ?? null;
+      converted.optionAEn = smartConvertValue(opts.A.en ?? opts.A.english ?? opts.A, 'optionA');
+      converted.optionAMr = smartConvertValue(opts.A.mr ?? opts.A.marathi ?? null, 'optionAMr');
+      converted.optionBEn = smartConvertValue(opts.B?.en ?? opts.B?.english ?? opts.B ?? "", 'optionB');
+      converted.optionBMr = smartConvertValue(opts.B?.mr ?? opts.B?.marathi ?? null, 'optionBMr');
+      converted.optionCEn = smartConvertValue(opts.C?.en ?? opts.C?.english ?? opts.C ?? "", 'optionC');
+      converted.optionCMr = smartConvertValue(opts.C?.mr ?? opts.C?.marathi ?? null, 'optionCMr');
+      converted.optionDEn = smartConvertValue(opts.D?.en ?? opts.D?.english ?? opts.D ?? "", 'optionD');
+      converted.optionDMr = smartConvertValue(opts.D?.mr ?? opts.D?.marathi ?? null, 'optionDMr');
       converted._wasConverted = true;
     } else {
-      converted.optionAEn = String(opts.A ?? opts.a ?? "");
-      converted.optionBEn = String(opts.B ?? opts.b ?? "");
-      converted.optionCEn = String(opts.C ?? opts.c ?? "");
-      converted.optionDEn = String(opts.D ?? opts.d ?? "");
+      converted.optionAEn = smartConvertValue(opts.A ?? opts.a ?? "", 'optionA');
+      converted.optionBEn = smartConvertValue(opts.B ?? opts.b ?? "", 'optionB');
+      converted.optionCEn = smartConvertValue(opts.C ?? opts.c ?? "", 'optionC');
+      converted.optionDEn = smartConvertValue(opts.D ?? opts.d ?? "", 'optionD');
       converted.optionAMr = null;
       converted.optionBMr = null;
       converted.optionCMr = null;
@@ -56,23 +139,24 @@ function smartConvertMCQ(item: any): any {
       converted._wasConverted = true;
     }
   } else if (Array.isArray(item.options)) {
-    converted.optionAEn = String(item.options[0] ?? "");
-    converted.optionBEn = String(item.options[1] ?? "");
-    converted.optionCEn = String(item.options[2] ?? "");
-    converted.optionDEn = String(item.options[3] ?? "");
+    converted.optionAEn = smartConvertValue(item.options[0] ?? "", 'optionA');
+    converted.optionBEn = smartConvertValue(item.options[1] ?? "", 'optionB');
+    converted.optionCEn = smartConvertValue(item.options[2] ?? "", 'optionC');
+    converted.optionDEn = smartConvertValue(item.options[3] ?? "", 'optionD');
     converted.optionAMr = null;
     converted.optionBMr = null;
     converted.optionCMr = null;
     converted.optionDMr = null;
     converted._wasConverted = true;
   } else {
-    converted.optionAEn = String(item.optionAEn ?? item.optionA ?? item.a ?? item.option1 ?? "");
+    // Direct field mapping with date conversion
+    converted.optionAEn = smartConvertValue(item.optionAEn ?? item.optionA ?? item.a ?? item.option1 ?? "", 'optionA');
     converted.optionAMr = item.optionAMr ?? item.optionAMarathi ?? null;
-    converted.optionBEn = String(item.optionBEn ?? item.optionB ?? item.b ?? item.option2 ?? "");
+    converted.optionBEn = smartConvertValue(item.optionBEn ?? item.optionB ?? item.b ?? item.option2 ?? "", 'optionB');
     converted.optionBMr = item.optionBMr ?? item.optionBMarathi ?? null;
-    converted.optionCEn = String(item.optionCEn ?? item.optionC ?? item.c ?? item.option3 ?? "");
+    converted.optionCEn = smartConvertValue(item.optionCEn ?? item.optionC ?? item.c ?? item.option3 ?? "", 'optionC');
     converted.optionCMr = item.optionCMr ?? item.optionCMarathi ?? null;
-    converted.optionDEn = String(item.optionDEn ?? item.optionD ?? item.d ?? item.option4 ?? "");
+    converted.optionDEn = smartConvertValue(item.optionDEn ?? item.optionD ?? item.d ?? item.option4 ?? "", 'optionD');
     converted.optionDMr = item.optionDMr ?? item.optionDMarathi ?? null;
   }
 
@@ -92,15 +176,8 @@ function smartConvertMCQ(item: any): any {
     converted.difficulty = "MODERATE";
   }
 
-  if (typeof item.explanation === 'object' && item.explanation !== null) {
-    converted.explanationEn = item.explanation.en ?? item.explanation.english ?? null;
-    converted.explanationMr = item.explanation.mr ?? item.explanation.marathi ?? null;
-    converted._wasConverted = true;
-  } else {
-    converted.explanationEn = item.explanationEn ?? item.explanation ?? item.explain ?? null;
-    converted.explanationMr = item.explanationMr ?? item.explanationMarathi ?? null;
-  }
-
+  // NOTE: explanationEn and explanationMr removed - not in Question schema
+  
   return converted;
 }
 
@@ -165,6 +242,7 @@ function smartConvertRevision(item: any): any {
   }
 
   const imageUrl = item.imageUrl ?? item.image ?? item.img ?? null;
+  const videoUrl = item.videoUrl ?? item.video ?? null;
   const order = Number(item.order ?? item.orderIndex ?? item.sequence ?? 0);
 
   return {
@@ -174,6 +252,7 @@ function smartConvertRevision(item: any): any {
     contentEn,
     contentMr,
     imageUrl,
+    videoUrl,
     qaJson,
     order,
     _wasConverted: true
@@ -189,7 +268,6 @@ export async function POST(req: NextRequest) {
     
     let type: string | null = null;
     let resetIds = false;
-    let buffer: ArrayBuffer | null = null;
     let items: any[] = [];
 
     // ============================================
@@ -244,7 +322,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
       }
 
-      buffer = await file.arrayBuffer();
+      const buffer = await file.arrayBuffer();
       type = formData.get("type") as string | null;
       resetIds = formData.get("resetIds") === "true";
       
@@ -252,13 +330,26 @@ export async function POST(req: NextRequest) {
 
       // Parse file
       if (type === "mcq") {
-        const workbook = XLSX.read(buffer, { type: "array" });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        // raw: false preserves formatted strings like "5%" instead of converting to 0.05
-        items = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { 
-          raw: false, 
-          defval: "" 
+        const fileName = file.name.toLowerCase();
+        
+        // For all files, use raw:false to get formatted values
+        const workbook = XLSX.read(buffer, { 
+          type: "array",
+          cellDates: false,  // Don't auto-convert dates
+          raw: false,        // Get formatted strings, not raw values
+          cellText: true,    // Prefer text over numbers
         });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        items = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { 
+          raw: false,        // Get formatted strings
+          defval: "",
+          dateNF: 'dd mmmm yyyy'  // Date format if needed
+        });
+        
+        console.log("📊 Parsed rows:", items.length);
+        if (items.length > 0) {
+          console.log("📊 Sample row:", JSON.stringify(items[0]).substring(0, 500));
+        }
       } else {
         try {
           const json = JSON.parse(Buffer.from(buffer).toString("utf-8"));
@@ -369,7 +460,7 @@ export async function POST(req: NextRequest) {
             continue;
           }
 
-          // Insert question
+          // Insert question - NO explanation fields (not in Question schema)
           await prisma.question.create({
             data: {
               chapterId,
@@ -379,9 +470,9 @@ export async function POST(req: NextRequest) {
               optionAMr: item.optionAMr ? String(item.optionAMr) : null,
               optionBEn: String(item.optionBEn),
               optionBMr: item.optionBMr ? String(item.optionBMr) : null,
-              optionCEn: String(item.optionCEn),
+              optionCEn: String(item.optionCEn || ""),
               optionCMr: item.optionCMr ? String(item.optionCMr) : null,
-              optionDEn: String(item.optionDEn),
+              optionDEn: String(item.optionDEn || ""),
               optionDMr: item.optionDMr ? String(item.optionDMr) : null,
               correctAnswer: item.correctAnswer,
               difficulty: item.difficulty,
@@ -502,6 +593,7 @@ export async function POST(req: NextRequest) {
               contentEn: item.contentEn,
               contentMr: item.contentMr,
               imageUrl: item.imageUrl,
+              videoUrl: item.videoUrl,
               qaJson: item.qaJson,
               order: item.order,
             },
