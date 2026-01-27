@@ -6,7 +6,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -143,7 +142,6 @@ export default function ExamApplicationPage() {
         if (data.application) {
           setApplicationId(data.application.id);
           setCurrentStep(data.application.currentStep || 1);
-          // Map API data to form data
           setFormData(prev => ({
             ...prev,
             ...mapApiToFormData(data.application)
@@ -195,6 +193,7 @@ export default function ExamApplicationPage() {
       trainingCertUrl: apiData.trainingCertUrl || "",
       pwbdCertUrl: apiData.pwbdCertUrl || "",
       declarationAccepted: apiData.declarationAccepted || false,
+      selfieUrl: apiData.selfieUrl || "",
     };
   };
 
@@ -207,12 +206,10 @@ export default function ExamApplicationPage() {
       [name]: type === "checkbox" ? checked : value
     }));
     
-    // Clear error when user types
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: "" }));
     }
     
-    // Handle "same as correspondence" checkbox
     if (name === "sameAsCorrespondence" && checked) {
       setFormData(prev => ({
         ...prev,
@@ -225,6 +222,36 @@ export default function ExamApplicationPage() {
         permPincode: prev.corrPincode,
       }));
     }
+  };
+
+  const handleSelfieCapture = (imageData: string) => {
+    setFormData(prev => ({
+      ...prev,
+      selfieUrl: imageData
+    }));
+    if (errors.selfieUrl) {
+      setErrors(prev => ({ ...prev, selfieUrl: "" }));
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const maxSize = fieldName === "photoUrl" || fieldName === "signatureUrl" ? 50 * 1024 : 2 * 1024 * 1024;
+    if (file.size > maxSize) {
+      alert(`File too large. Maximum size: ${maxSize < 1024 * 1024 ? `${maxSize / 1024}KB` : `${maxSize / (1024 * 1024)}MB`}`);
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = () => {
+      setFormData(prev => ({
+        ...prev,
+        [fieldName]: reader.result as string
+      }));
+    };
+    reader.readAsDataURL(file);
   };
 
   const validateStep = (step: number): boolean => {
@@ -273,13 +300,13 @@ export default function ExamApplicationPage() {
         break;
         
       case 5:
-        // Documents are optional for practice, but show warning
+        // Documents are optional for practice
         break;
         
       case 6:
         if (!formData.declarationAccepted) newErrors.declarationAccepted = "You must accept the declaration";
-        if (!formData.selfieUrl) newErrors.selfieUrl = "Please capture a live selfie";  // ← ADD THIS LINE
-  break;
+        if (!formData.selfieUrl) newErrors.selfieUrl = "Please capture a live selfie";
+        break;
     }
     
     setErrors(newErrors);
@@ -355,7 +382,6 @@ export default function ExamApplicationPage() {
         throw new Error(data.error || "Failed to submit");
       }
       
-      // Redirect to status page
       router.push(`/exam/status?id=${applicationId}`);
     } catch (error) {
       console.error("Submit error:", error);
@@ -365,37 +391,6 @@ export default function ExamApplicationPage() {
     }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-  
-  const handleSelfieCapture = (imageData: string) => {
-    setFormData(prev => ({
-        ...prev,
-        selfieUrl: imageData
-    }));
-  };
-  
-
-    // Validate file
-    const maxSize = fieldName === "photoUrl" || fieldName === "signatureUrl" ? 50 * 1024 : 2 * 1024 * 1024;
-    if (file.size > maxSize) {
-      alert(`File too large. Maximum size: ${maxSize < 1024 * 1024 ? `${maxSize / 1024}KB` : `${maxSize / (1024 * 1024)}MB`}`);
-      return;
-    }
-    
-    // For practice, we'll use base64 data URL (in production, upload to S3)
-    const reader = new FileReader();
-    reader.onload = () => {
-      setFormData(prev => ({
-        ...prev,
-        [fieldName]: reader.result as string
-      }));
-    };
-    reader.readAsDataURL(file);
-  };
-
-  // Step titles
   const stepTitles = [
     { en: "Personal Details", mr: "वैयक्तिक माहिती" },
     { en: "Identity & Exam Details", mr: "ओळखपत्र आणि परीक्षा तपशील" },
@@ -407,7 +402,7 @@ export default function ExamApplicationPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* Header - TCS iON Style */}
+      {/* Header */}
       <header className="bg-gradient-to-r from-blue-800 to-blue-900 text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
@@ -488,7 +483,6 @@ export default function ExamApplicationPage() {
 
           {/* Form Content */}
           <div className="p-6">
-            {/* Step 1: Personal Details */}
             {currentStep === 1 && (
               <Step1PersonalDetails
                 formData={formData}
@@ -499,7 +493,6 @@ export default function ExamApplicationPage() {
               />
             )}
 
-            {/* Step 2: Identity & Exam Details */}
             {currentStep === 2 && (
               <Step2IdentityDetails
                 formData={formData}
@@ -509,7 +502,6 @@ export default function ExamApplicationPage() {
               />
             )}
 
-            {/* Step 3: Address Details */}
             {currentStep === 3 && (
               <Step3AddressDetails
                 formData={formData}
@@ -520,7 +512,6 @@ export default function ExamApplicationPage() {
               />
             )}
 
-            {/* Step 4: Exam Centre */}
             {currentStep === 4 && (
               <Step4ExamCentre
                 formData={formData}
@@ -531,26 +522,25 @@ export default function ExamApplicationPage() {
               />
             )}
 
-            {/* Step 5: Documents */}
             {currentStep === 5 && (
               <Step5Documents
                 formData={formData}
                 errors={errors}
+                onChange={handleInputChange}
                 onFileUpload={handleFileUpload}
                 language={language}
               />
             )}
 
-            {/* Step 6: Declaration */}
             {currentStep === 6 && (
-                <Step6Declaration
-                    formData={formData}
-                    errors={errors}
-                    onChange={handleInputChange}
-                    onSelfieCapture={handleSelfieCapture}
-                    language={language}
-                />
-                )}
+              <Step6Declaration
+                formData={formData}
+                errors={errors}
+                onChange={handleInputChange}
+                onSelfieCapture={handleSelfieCapture}
+                language={language}
+              />
+            )}
           </div>
 
           {/* Navigation Buttons */}
@@ -660,7 +650,6 @@ function Step1PersonalDetails({
         </div>
 
         <div className="flex-1 space-y-4">
-          {/* Photo Guidelines */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <h4 className="text-sm font-medium text-blue-800 mb-2">📷 Photo Guidelines</h4>
             <ul className="text-xs text-blue-700 space-y-1">
@@ -674,7 +663,6 @@ function Step1PersonalDetails({
         </div>
       </div>
 
-      {/* Name */}
       <FormField
         label="Candidate Name (as per PAN)"
         labelMr="उमेदवाराचे नाव (पॅन प्रमाणे)"
@@ -688,7 +676,6 @@ function Step1PersonalDetails({
         language={language}
       />
 
-      {/* DOB & Gender */}
       <div className="grid grid-cols-2 gap-4">
         <FormField
           label="Date of Birth"
@@ -735,7 +722,6 @@ function Step1PersonalDetails({
         </div>
       </div>
 
-      {/* Parents' Names */}
       <div className="grid grid-cols-2 gap-4">
         <FormField
           label="Father's Name"
@@ -759,7 +745,6 @@ function Step1PersonalDetails({
         />
       </div>
 
-      {/* Contact Details */}
       <div className="grid grid-cols-2 gap-4">
         <FormField
           label="Email ID"
@@ -808,7 +793,6 @@ function Step1PersonalDetails({
 function Step2IdentityDetails({ formData, errors, onChange, language }: StepProps) {
   return (
     <div className="space-y-6">
-      {/* PAN Details */}
       <div className="grid grid-cols-2 gap-4">
         <FormField
           label="PAN Card Number"
@@ -835,7 +819,6 @@ function Step2IdentityDetails({ formData, errors, onChange, language }: StepProp
         />
       </div>
 
-      {/* Post Applied */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Post Applied For <span className="text-red-500">*</span>
@@ -853,7 +836,6 @@ function Step2IdentityDetails({ formData, errors, onChange, language }: StepProp
         </select>
       </div>
 
-      {/* Training Details */}
       <div className="bg-gray-50 rounded-lg p-4 space-y-4">
         <h3 className="font-medium text-gray-800">
           Training Details {language === "mr" && <span className="text-gray-500 font-normal">(प्रशिक्षण तपशील)</span>}
@@ -884,7 +866,6 @@ function Step2IdentityDetails({ formData, errors, onChange, language }: StepProp
         />
       </div>
 
-      {/* PwBD Section */}
       <div className="bg-blue-50 rounded-lg p-4 space-y-4">
         <label className="flex items-center gap-3 cursor-pointer">
           <input
@@ -941,7 +922,6 @@ function Step3AddressDetails({
 }: StepProps & { districts: string[] }) {
   return (
     <div className="space-y-6">
-      {/* Correspondence Address */}
       <div className="space-y-4">
         <h3 className="font-medium text-gray-800 border-b pb-2">
           Correspondence Address {language === "mr" && <span className="text-gray-500 font-normal">(पत्रव्यवहाराचा पत्ता)</span>}
@@ -1036,7 +1016,6 @@ function Step3AddressDetails({
         </div>
       </div>
 
-      {/* Same as Correspondence Checkbox */}
       <label className="flex items-center gap-3 cursor-pointer p-4 bg-gray-50 rounded-lg">
         <input
           type="checkbox"
@@ -1051,7 +1030,6 @@ function Step3AddressDetails({
         </span>
       </label>
 
-      {/* Permanent Address */}
       {!formData.sameAsCorrespondence && (
         <div className="space-y-4">
           <h3 className="font-medium text-gray-800 border-b pb-2">
@@ -1236,7 +1214,8 @@ function Step4ExamCentre({
 
 function Step5Documents({ 
   formData, 
-  errors, 
+  errors,
+  onChange,
   onFileUpload,
   language 
 }: StepProps & { onFileUpload: (e: React.ChangeEvent<HTMLInputElement>, field: string) => void }) {
@@ -1245,12 +1224,11 @@ function Step5Documents({
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
         <h3 className="font-medium text-yellow-800 mb-2">🎓 Practice Mode</h3>
         <p className="text-sm text-yellow-700">
-          Document upload is optional in practice mode. In the real exam, you'll need to 
+          Document upload is optional in practice mode. In the real exam, you will need to 
           upload actual documents. This step helps you understand the requirements.
         </p>
       </div>
 
-      {/* Signature */}
       <DocumentUploadField
         label="Signature"
         labelMr="स्वाक्षरी"
@@ -1265,7 +1243,6 @@ function Step5Documents({
         language={language}
       />
 
-      {/* PAN Card */}
       <DocumentUploadField
         label="PAN Card (Front)"
         labelMr="पॅन कार्ड"
@@ -1280,7 +1257,6 @@ function Step5Documents({
         language={language}
       />
 
-      {/* Training Certificate */}
       <DocumentUploadField
         label="Training Completion Certificate"
         labelMr="प्रशिक्षण प्रमाणपत्र"
@@ -1295,7 +1271,6 @@ function Step5Documents({
         language={language}
       />
 
-      {/* PwBD Certificate (conditional) */}
       {formData.isPwBD && (
         <DocumentUploadField
           label="PwBD Certificate"
@@ -1372,6 +1347,130 @@ function DocumentUploadField({
             )}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// Step 6: Declaration
+// ─────────────────────────────────────────────────────────────────────────────────
+
+function Step6Declaration({ 
+  formData, 
+  errors, 
+  onChange, 
+  onSelfieCapture,
+  language 
+}: StepProps & { onSelfieCapture: (imageData: string) => void }) {
+  return (
+    <div className="space-y-6">
+      {/* Declaration Text */}
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 max-h-64 overflow-y-auto">
+        <h3 className="font-medium text-gray-800 mb-3">Declaration</h3>
+        <div className="text-sm text-gray-700 space-y-2">
+          <p>I hereby declare that:</p>
+          <ol className="list-decimal pl-5 space-y-2">
+            <li>All the information provided by me in this application form is true and correct to the best of my knowledge and belief.</li>
+            <li>I have read and understood the instructions and eligibility criteria for the MahaRERA Real Estate Agent examination.</li>
+            <li>I have completed the mandatory training from a MahaRERA approved training institute.</li>
+            <li>I understand that any false or misleading information may result in cancellation of my candidature.</li>
+            <li>I agree to abide by the rules and regulations of MahaRERA and the examination authority.</li>
+          </ol>
+          {language === "mr" && (
+            <div className="mt-4 pt-4 border-t">
+              <p>मी याद्वारे घोषित करतो की:</p>
+              <ol className="list-decimal pl-5 space-y-2 mt-2">
+                <li>या अर्जात माझ्याद्वारे दिलेली सर्व माहिती माझ्या माहितीनुसार आणि विश्वासानुसार सत्य आणि योग्य आहे.</li>
+                <li>मी महाRERA रिअल इस्टेट एजंट परीक्षेसाठी सूचना आणि पात्रता निकष वाचले आणि समजले आहेत.</li>
+                <li>मी महाRERA मान्यताप्राप्त प्रशिक्षण संस्थेकडून अनिवार्य प्रशिक्षण पूर्ण केले आहे.</li>
+                <li>मला समजते की कोणतीही खोटी किंवा दिशाभूल करणारी माहिती माझी उमेदवारी रद्द होऊ शकते.</li>
+              </ol>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Accept Declaration */}
+      <label className="flex items-start gap-3 cursor-pointer p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <input
+          type="checkbox"
+          name="declarationAccepted"
+          checked={formData.declarationAccepted}
+          onChange={onChange}
+          className="w-5 h-5 text-blue-600 rounded mt-0.5"
+        />
+        <span className="text-gray-800">
+          I have read and accept the above declaration
+          {language === "mr" && <span className="text-gray-500 ml-1">(मी वरील घोषणा वाचली आणि स्वीकारतो)</span>}
+          <span className="text-red-500 ml-1">*</span>
+        </span>
+      </label>
+      {errors.declarationAccepted && (
+        <p className="text-red-500 text-xs">{errors.declarationAccepted}</p>
+      )}
+
+      {/* Live Selfie Section */}
+      <div className="border border-gray-200 rounded-lg p-4">
+        <h4 className="font-medium text-gray-800 mb-2">
+          Live Selfie Capture
+          {language === "mr" && <span className="text-gray-500 font-normal ml-1">(लाइव्ह सेल्फी)</span>}
+          <span className="text-red-500 ml-1">*</span>
+        </h4>
+        <p className="text-sm text-gray-600 mb-4">
+          Please capture a live selfie for identity verification. This simulates the real exam process.
+        </p>
+
+        {formData.selfieUrl ? (
+          <div className="text-center">
+            <img 
+              src={formData.selfieUrl} 
+              alt="Selfie" 
+              className="w-48 h-48 object-cover rounded-lg mx-auto border"
+            />
+            <button
+              type="button"
+              onClick={() => onSelfieCapture("")}
+              className="mt-3 px-4 py-2 text-sm text-red-600 border border-red-300 rounded-lg hover:bg-red-50"
+            >
+              Retake Selfie
+            </button>
+          </div>
+        ) : (
+          <div className="text-center">
+            <div className="w-48 h-48 bg-gray-100 rounded-lg mx-auto flex items-center justify-center border-2 border-dashed border-gray-300">
+              <span className="text-gray-400 text-4xl">📷</span>
+            </div>
+            <p className="text-sm text-gray-500 mt-2 mb-3">
+              In practice mode, you can upload a photo instead
+            </p>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  const reader = new FileReader();
+                  reader.onload = () => onSelfieCapture(reader.result as string);
+                  reader.readAsDataURL(file);
+                }
+              }}
+              className="text-sm"
+            />
+          </div>
+        )}
+        {errors.selfieUrl && (
+          <p className="text-red-500 text-xs mt-2 text-center">{errors.selfieUrl}</p>
+        )}
+      </div>
+
+      {/* Final Notice */}
+      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+        <h4 className="font-medium text-green-800 mb-2">✅ Ready to Submit</h4>
+        <p className="text-sm text-green-700">
+          After submission, you will receive a practice Admit Card and can take a mock exam.
+          This helps you prepare for the actual MahaRERA examination process.
+        </p>
       </div>
     </div>
   );
