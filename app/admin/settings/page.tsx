@@ -21,7 +21,7 @@ interface SystemConfig {
   updatedAt: string;
 }
 
-type Category = "ALL" | "EXAM" | "PLATFORM" | "INSTITUTE" | "FEES" | "PRICING" | "PAYMENT";
+type Category = "ALL" | "EXAM" | "PLATFORM" | "INSTITUTE" | "FEES" | "PRICING" | "PAYMENT" | "COURSE";
 
 const CATEGORIES: { value: Category; label: string; color: string }[] = [
   { value: "ALL", label: "All Settings", color: "gray" },
@@ -31,6 +31,7 @@ const CATEGORIES: { value: Category; label: string; color: string }[] = [
   { value: "FEES", label: "Fees", color: "yellow" },
   { value: "PRICING", label: "Pricing", color: "orange" },
   { value: "PAYMENT", label: "Payment", color: "teal" },
+  { value: "COURSE", label: "Course", color: "emerald" },
 ];
 
 const DATA_TYPES = [
@@ -585,6 +586,10 @@ export default function AdminSettingsPage() {
                       <option value="EXAM">Exam</option>
                       <option value="PLATFORM">Platform</option>
                       <option value="INSTITUTE">Institute</option>
+                      <option value="FEES">Fees</option>
+                      <option value="PRICING">Pricing</option>
+                      <option value="PAYMENT">Payment</option>
+                      <option value="COURSE">Course</option>
                     </select>
                   </div>
                 </div>
@@ -627,7 +632,7 @@ export default function AdminSettingsPage() {
                       }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder={
-                        formData.dataType === "NUMBER" ? "350" : "Enter value"
+                        formData.dataType === "NUMBER" ? "1000" : "Enter value"
                       }
                       required
                     />

@@ -17,6 +17,8 @@ interface Payment {
   notes: string | null;
   status: "PENDING" | "APPROVED" | "REJECTED";
   createdAt: string;
+  source: "paymentProof" | "examPayment";
+  instituteName: string | null;
   user: {
     fullName: string;
     mobile: string;
@@ -77,10 +79,11 @@ export default function AdminPaymentsPage() {
     try {
       setProcessing(paymentId);
 
+      const payment = payments.find(p => p.id === paymentId);
       const res = await fetch(`/api/admin/payments/${paymentId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action, source: payment?.source || "paymentProof" }),
       });
 
       if (!res.ok) {
@@ -114,11 +117,13 @@ export default function AdminPaymentsPage() {
   const getPlanLabel = (planType: string) => {
     switch (planType) {
       case "PACKAGE":
-        return "Revision & Mock Test Package";
+        return "📝 Exam Package";
       case "ADDITIONAL_TEST":
-        return "Additional Mock Test";
+        return "📝 Additional Mock Test";
+      case "TRAINING_COURSE":
+        return "🎓 Training Course";
       case "PREMIUM_PLAN":
-        return "Revision & Mock Test Package"; // Legacy support
+        return "📝 Exam Package"; // Legacy support
       default:
         return planType;
     }

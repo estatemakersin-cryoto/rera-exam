@@ -1,7 +1,10 @@
+// app/login/page.tsx
+
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -43,9 +46,15 @@ export default function LoginPage() {
         return;
       }
 
-      // Redirect based on admin status
-      if (data.user?.isAdmin) {
+      // Redirect based on user role
+      const role = data.user?.role;
+      
+      if (role === "SUPER_ADMIN" || role === "ADMIN" || data.user?.isAdmin) {
         window.location.href = "/admin";
+      } else if (role === "INSTITUTE_OWNER" || role === "INSTITUTE_STAFF") {
+        window.location.href = "/institute/dashboard";
+      } else if (role === "AGENT") {
+        window.location.href = "/agent/dashboard";
       } else {
         window.location.href = "/dashboard";
       }
@@ -80,7 +89,15 @@ export default function LoginPage() {
 
           {/* PASSWORD WITH EYE ICON */}
           <div>
-            <label className="block mb-1 font-medium">Password</label>
+            <div className="flex justify-between items-center mb-1">
+              <label className="font-medium">Password</label>
+              <Link 
+                href="/forgot-password" 
+                className="text-sm text-blue-600 hover:underline"
+              >
+                Forgot Password?
+              </Link>
+            </div>
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}

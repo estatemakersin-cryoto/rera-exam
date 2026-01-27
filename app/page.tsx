@@ -68,7 +68,7 @@ export default function HomePage() {
           {/* SMART CTA */}
           <div className="flex justify-center items-center mt-8">
             <SmartCTA
-              guestText="Start Preparation – ₹350"
+              guestText="Start Preparation – ₹1000"
               guestHref="/register"
               userText="Continue Preparation"
               userHref="/rera-exam/dashboard"
@@ -154,7 +154,7 @@ export default function HomePage() {
             </h3>
 
             <div className="text-4xl md:text-5xl font-extrabold text-purple-600 mb-4">
-              ₹350
+              ₹1000
             </div>
 
             <ul className="space-y-2 text-sm text-gray-700 mb-6">

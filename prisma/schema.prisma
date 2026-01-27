@@ -38,6 +38,7 @@ model User {
   referralAsConverted  Referral[]         @relation("ReferralConvertedUser")
   referralsMade        Referral[]         @relation("UserReferrals")
   attempts             TestAttempt[]
+  applications         ExamApplication[]
 }
 
 model SystemConfig {
@@ -137,6 +138,7 @@ model Question {
 model TestAttempt {
   id              String       @id @default(cuid())
   userId          String?
+  application     ExamApplication[]
   startTime       DateTime     @default(now())
   endTime         DateTime?
   score           Int?
@@ -238,6 +240,7 @@ model Institute {
   batches             Batch[]
   certificates        Certificate[]
   payments            ExamPayment[]
+  applications        ExamApplication[]
   examSessions        ExamSession[]
   branches            InstituteBranch[]
   staff               InstituteStaff[]
@@ -351,6 +354,7 @@ model ExamSession {
   batchId               String?
   name                  String
   description           String?
+  applications          ExamApplication[]
   examDate              DateTime
   startTime             DateTime
   endTime               DateTime
@@ -483,3 +487,223 @@ enum BatchMode {
   ONLINE
   OFFLINE
 }
+
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// EXAM APPLICATION MODEL
+// Stores practice exam application data (mirrors TCS iON form)
+// ─────────────────────────────────────────────────────────────────────────────────
+
+model ExamApplication {
+  id                  String   @id @default(cuid())
+  
+  // Application Reference
+  applicationNumber   String   @unique  // "EM2025001234"
+  userId              String
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STEP 1: PERSONAL DETAILS
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  candidateName       String?            // As per PAN (uppercase)
+  dateOfBirth         DateTime?
+  gender              String?            // Male/Female/Other
+  fatherName          String?
+  motherName          String?
+  email               String?
+  mobile              String?
+  alternateMobile     String?
+  
+  // Photo Upload
+  photoUrl            String?
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STEP 2: IDENTITY & EXAM DETAILS
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  panNumber           String?            // AAAAA9999A format
+  nameOnPan           String?
+  postApplied         String   @default("REAL ESTATE AGENT EXAM")
+  trainingInstitute   String?
+  trainingCertNo      String?            // SIMRERA019071
+  isPwBD              Boolean  @default(false)
+  pwbdType            String?
+  pwbdPercentage      Int?
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STEP 3: ADDRESS DETAILS
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  // Correspondence Address
+  corrAddressLine1    String?
+  corrAddressLine2    String?
+  corrCountry         String   @default("India")
+  corrState           String?
+  corrDistrict        String?
+  corrPincode         String?
+  
+  // Permanent Address
+  sameAsCorrespondence Boolean @default(false)
+  permAddressLine1    String?
+  permAddressLine2    String?
+  permCountry         String?
+  permState           String?
+  permDistrict        String?
+  permPincode         String?
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STEP 4: EXAM CENTRE PREFERENCES
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  centrePreference1   String?            // District name
+  centrePreference2   String?
+  centrePreference3   String?
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STEP 5: DOCUMENTS
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  signatureUrl        String?
+  panCardUrl          String?
+  trainingCertUrl     String?
+  pwbdCertUrl         String?
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STEP 6: DECLARATION
+  // ═══════════════════════════════════════════════════════════════════════════
+  selfieUrl           String? 
+  declarationAccepted Boolean  @default(false)
+  declarationDate     DateTime?
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // APPLICATION STATUS & TRACKING
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  status              ApplicationStatus @default(DRAFT)
+  currentStep         Int      @default(1)  // 1-6
+  
+  // For Institute Mode (optional)
+  instituteId         String?
+  institute           Institute? @relation(fields: [instituteId], references: [id])
+  batchId             String?
+  
+  // Review (for institute mode)
+  reviewedAt          DateTime?
+  reviewedBy          String?
+  rejectionReason     String?
+  
+  // Exam Assignment
+  examSessionId       String?
+  examSession         ExamSession? @relation(fields: [examSessionId], references: [id])
+  rollNumber          String?      // Generated before exam
+  seatNumber          String?
+  
+  // Admit Card
+  admitCardGenerated  Boolean  @default(false)
+  admitCardUrl        String?
+  
+  // Exam & Result
+  testAttemptId       String?  @unique
+  testAttempt         TestAttempt? @relation(fields: [testAttemptId], references: [id])
+  examAttended        Boolean  @default(false)
+  examScore           Int?
+  resultStatus        String?  // passed, failed
+  resultDeclaredAt    DateTime?
+  
+  // Certificate
+  certificateId       String?
+  certificateNumber   String?
+  certificateUrl      String?
+  certificateIssuedAt DateTime?
+  
+  // Timestamps
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  submittedAt         DateTime?
+  
+  // Logs
+  logs                ApplicationLog[]
+  
+  @@index([userId])
+  @@index([status])
+  @@index([instituteId])
+  @@index([examSessionId])
+  @@index([applicationNumber])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// APPLICATION LOG MODEL
+// Tracks all actions on an application
+// ─────────────────────────────────────────────────────────────────────────────────
+
+model ApplicationLog {
+  id              String   @id @default(cuid())
+  applicationId   String
+  application     ExamApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  
+  action          String   // created, step_completed, submitted, approved, etc.
+  description     String
+  previousStatus  String?
+  newStatus       String?
+  stepNumber      Int?
+  
+  performedBy     String?  // userId who performed the action
+  ipAddress       String?
+  userAgent       String?
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([applicationId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// EXAM CENTRE MODEL (for practice - can be skipped in MVP)
+// ─────────────────────────────────────────────────────────────────────────────────
+
+model ExamCentre {
+  id              String   @id @default(cuid())
+  
+  centreName      String   // "ABC Institute, Mumbai"
+  centreCode      String   @unique  // "MUM001"
+  district        String
+  address         String
+  city            String
+  state           String   @default("Maharashtra")
+  pincode         String
+  
+  capacity        Int      @default(100)
+  allocatedCount  Int      @default(0)
+  
+  isActive        Boolean  @default(true)
+  
+  // Contact
+  contactPerson   String?
+  contactPhone    String?
+  contactEmail    String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([district])
+  @@index([city])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// ENUM: APPLICATION STATUS
+// ─────────────────────────────────────────────────────────────────────────────────
+
+enum ApplicationStatus {
+  DRAFT                 // Application started but not submitted
+  SUBMITTED             // Application submitted, pending review
+  PAYMENT_PENDING       // Awaiting payment (if applicable)
+  PAYMENT_SUCCESS       // Payment completed
+  APPROVED              // Application approved by institute/admin
+  REJECTED              // Application rejected
+  ADMIT_CARD_ISSUED     // Admit card generated
+  APPEARED              // Candidate appeared for exam
+  PASSED                // Exam passed
+  FAILED                // Exam failed
+  CERTIFICATE_ISSUED    // Certificate generated
+}
+

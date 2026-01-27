@@ -37,6 +37,7 @@ export default function CreateBatchPage() {
     address: "",
     city: "",
     meetingLink: "",
+    isPublished: false,
   });
 
   useEffect(() => {
@@ -424,6 +425,21 @@ export default function CreateBatchPage() {
               </div>
             </div>
           )}
+
+          {/* Publish Option */}
+          <div className="flex items-center gap-3 p-4 bg-green-50 rounded-lg border border-green-200">
+            <input
+              type="checkbox"
+              id="isPublished"
+              checked={formData.isPublished}
+              onChange={(e) => setFormData({ ...formData, isPublished: e.target.checked })}
+              className="w-5 h-5 text-green-600 rounded focus:ring-green-500"
+            />
+            <label htmlFor="isPublished" className="flex-1">
+              <span className="font-medium text-gray-800">Publish immediately</span>
+              <p className="text-sm text-gray-600">Make this batch visible to students on the enrollment page</p>
+            </label>
+          </div>
 
           {/* Submit */}
           <div className="pt-4 border-t">

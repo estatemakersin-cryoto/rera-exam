@@ -1,39 +1,51 @@
 // ══════════════════════════════════════════════════════════════════════════════
-// PUBLIC INSTITUTES PAGE
-// app/institutes/page.tsx
-// Browse MahaRERA certified training institutes
+// PATH: app/institutes/page.tsx
+// Institutes Directory - List all verified training institutes
 // ══════════════════════════════════════════════════════════════════════════════
 
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-interface Branch {
+interface UpcomingBatch {
   id: string;
   name: string;
+  mode: "ONLINE" | "OFFLINE";
+  startDate: string;
+  fee: number;
   city: string | null;
-  isOnline: boolean;
+  seatsAvailable: number;
 }
 
 interface Institute {
   id: string;
   name: string;
   code: string;
+  description: string | null;
   city: string | null;
-  contactPhone: string | null;
-  branches: Branch[];
-  _count: {
-    batches: number;
-    students: number;
-  };
+  state: string;
+  address: string | null;
+  contactPhone: string;
+  contactEmail: string | null;
+  logo: string | null;
+  primaryColor: string;
+  branchCount: number;
+  upcomingBatchCount: number;
+  upcomingBatches: UpcomingBatch[];
+  hasOnlineBatches: boolean;
+  hasOfflineBatches: boolean;
 }
 
 export default function InstitutesPage() {
-  const [institutes, setInstitutes] = useState<Institute[]>([]);
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [cityFilter, setCityFilter] = useState("");
+  const [error, setError] = useState("");
+  const [institutes, setInstitutes] = useState<Institute[]>([]);
   const [cities, setCities] = useState<string[]>([]);
+  const [selectedCity, setSelectedCity] = useState<string>("");
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     loadInstitutes();
@@ -43,52 +55,106 @@ export default function InstitutesPage() {
     try {
       setLoading(true);
       const res = await fetch("/api/public/institutes");
-      if (res.ok) {
-        const data = await res.json();
-        setInstitutes(data.institutes || []);
 
-        // Extract unique cities
-        const allCities = new Set<string>();
-        data.institutes?.forEach((inst: Institute) => {
-          if (inst.city) allCities.add(inst.city);
-          inst.branches?.forEach((b: Branch) => {
-            if (b.city) allCities.add(b.city);
-          });
-        });
-        setCities(Array.from(allCities).sort());
+      if (!res.ok) {
+        throw new Error("Failed to load institutes");
       }
-    } catch (error) {
-      console.error("Failed to load institutes:", error);
+
+      const data = await res.json();
+      setInstitutes(data.institutes || []);
+      setCities(data.cities || []);
+    } catch (err: any) {
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredInstitutes = institutes.filter((inst) => {
-    if (!cityFilter) return true;
-    if (inst.city === cityFilter) return true;
-    return inst.branches?.some((b) => b.city === cityFilter);
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  // Filter institutes
+  const filteredInstitutes = institutes.filter((institute) => {
+    // City filter
+    if (selectedCity && institute.city !== selectedCity) {
+      return false;
+    }
+
+    // Search filter
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      return (
+        institute.name.toLowerCase().includes(search) ||
+        institute.city?.toLowerCase().includes(search) ||
+        institute.description?.toLowerCase().includes(search)
+      );
+    }
+
+    return true;
   });
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading Institutes...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Hero Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-16">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="text-center">
-            <h1 className="text-4xl font-bold mb-4">
-              MahaRERA Certified Training Institutes
-            </h1>
-            <p className="text-xl text-blue-100 mb-8">
-              Find authorized institutes for MahaRERA Agent certification training
-            </p>
+      {/* Header */}
+      <header className="bg-gradient-to-r from-blue-800 to-indigo-900 text-white">
+        <div className="max-w-6xl mx-auto px-4 py-8">
+          <Link
+            href="/dashboard"
+            className="text-blue-200 hover:text-white text-sm mb-2 inline-flex items-center gap-1"
+          >
+            ← Back to Dashboard
+          </Link>
+          <h1 className="text-3xl font-bold">🏛️ Training Institutes</h1>
+          <p className="text-blue-200 mt-2">
+            Verified MahaRERA training partners across Maharashtra
+          </p>
+        </div>
+      </header>
+
+      <main className="max-w-6xl mx-auto px-4 py-8">
+        {/* Error */}
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            {error}
+          </div>
+        )}
+
+        {/* Filters */}
+        <div className="bg-white rounded-xl shadow-lg p-4 mb-6">
+          <div className="flex flex-col md:flex-row gap-4">
+            {/* Search */}
+            <div className="flex-1">
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="🔍 Search institute name or city..."
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
 
             {/* City Filter */}
-            <div className="max-w-md mx-auto">
+            <div className="md:w-48">
               <select
-                value={cityFilter}
-                onChange={(e) => setCityFilter(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg text-gray-800 focus:ring-2 focus:ring-blue-300"
+                value={selectedCity}
+                onChange={(e) => setSelectedCity(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">All Cities</option>
                 {cities.map((city) => (
@@ -99,140 +165,170 @@ export default function InstitutesPage() {
               </select>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Institutes List */}
-      <div className="max-w-6xl mx-auto px-4 py-12">
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading institutes...</p>
+          {/* Results count */}
+          <div className="mt-3 text-sm text-gray-600">
+            Showing {filteredInstitutes.length} of {institutes.length} institutes
           </div>
-        ) : filteredInstitutes.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4">🏫</div>
-            <h2 className="text-2xl font-bold text-gray-700 mb-2">
-              No Institutes Found
-            </h2>
-            <p className="text-gray-500">
-              {cityFilter
-                ? `No institutes available in ${cityFilter}`
-                : "No institutes registered yet"}
+        </div>
+
+        {/* Institutes Grid */}
+        {filteredInstitutes.length === 0 ? (
+          <div className="bg-white rounded-xl shadow-lg p-12 text-center">
+            <div className="text-6xl mb-4">🏛️</div>
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">No Institutes Found</h3>
+            <p className="text-gray-600">
+              {searchTerm || selectedCity
+                ? "Try adjusting your search or filter"
+                : "No verified training institutes available yet"}
             </p>
           </div>
         ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 gap-6">
             {filteredInstitutes.map((institute) => (
               <div
                 key={institute.id}
-                className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow overflow-hidden"
+                className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow"
               >
-                {/* Header */}
-                <div className="bg-blue-600 text-white p-4">
-                  <h3 className="text-lg font-bold">{institute.name}</h3>
-                  <p className="text-blue-200 text-sm">Code: {institute.code}</p>
+                {/* Institute Header */}
+                <div
+                  className="p-4"
+                  style={{ backgroundColor: institute.primaryColor || "#1E40AF" }}
+                >
+                  <div className="flex items-center gap-3">
+                    {institute.logo ? (
+                      <img
+                        src={institute.logo}
+                        alt={institute.name}
+                        className="w-12 h-12 rounded-lg bg-white object-contain"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-lg bg-white/20 flex items-center justify-center text-2xl">
+                        🏛️
+                      </div>
+                    )}
+                    <div className="flex-1 text-white">
+                      <h3 className="font-bold text-lg">{institute.name}</h3>
+                      <p className="text-sm opacity-90">
+                        📍 {institute.city || "Maharashtra"}, {institute.state}
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Body */}
+                {/* Institute Body */}
                 <div className="p-4">
-                  {/* Location */}
-                  {institute.city && (
-                    <div className="flex items-center gap-2 text-gray-600 mb-3">
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                        />
-                      </svg>
-                      <span>{institute.city}</span>
-                    </div>
+                  {institute.description && (
+                    <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                      {institute.description}
+                    </p>
                   )}
 
                   {/* Stats */}
                   <div className="flex gap-4 mb-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600">
-                        {institute.branches?.length || 0}
+                    <div className="bg-blue-50 rounded-lg px-3 py-2 text-center flex-1">
+                      <div className="text-xl font-bold text-blue-600">
+                        {institute.upcomingBatchCount}
                       </div>
-                      <div className="text-xs text-gray-500">Branches</div>
+                      <div className="text-xs text-gray-600">Upcoming Batches</div>
                     </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">
-                        {institute._count?.batches || 0}
+                    <div className="bg-green-50 rounded-lg px-3 py-2 text-center flex-1">
+                      <div className="text-xl font-bold text-green-600">
+                        {institute.branchCount}
                       </div>
-                      <div className="text-xs text-gray-500">Batches</div>
+                      <div className="text-xs text-gray-600">Branches</div>
                     </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-purple-600">
-                        {institute._count?.students || 0}
+                    <div className="bg-purple-50 rounded-lg px-3 py-2 text-center flex-1">
+                      <div className="flex justify-center gap-1">
+                        {institute.hasOfflineBatches && (
+                          <span className="text-lg" title="Offline">🏢</span>
+                        )}
+                        {institute.hasOnlineBatches && (
+                          <span className="text-lg" title="Online">🌐</span>
+                        )}
+                        {!institute.hasOfflineBatches && !institute.hasOnlineBatches && (
+                          <span className="text-gray-400">-</span>
+                        )}
                       </div>
-                      <div className="text-xs text-gray-500">Students</div>
+                      <div className="text-xs text-gray-600">Mode</div>
                     </div>
                   </div>
 
-                  {/* Branches */}
-                  {institute.branches && institute.branches.length > 0 && (
-                    <div className="mb-4">
-                      <p className="text-xs text-gray-500 mb-2">Available at:</p>
-                      <div className="flex flex-wrap gap-1">
-                        {institute.branches.slice(0, 3).map((branch) => (
-                          <span
-                            key={branch.id}
-                            className={`text-xs px-2 py-1 rounded ${
-                              branch.isOnline
-                                ? "bg-purple-100 text-purple-700"
-                                : "bg-gray-100 text-gray-700"
-                            }`}
-                          >
-                            {branch.isOnline ? "🌐 " : "📍 "}
-                            {branch.city || branch.name}
+                  {/* Upcoming Batches Preview */}
+                  {institute.upcomingBatches.length > 0 && (
+                    <div className="border-t pt-3 mb-3">
+                      <p className="text-xs font-semibold text-gray-500 uppercase mb-2">
+                        Next Batch
+                      </p>
+                      <div className="bg-gray-50 rounded-lg p-2 text-sm">
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium text-gray-800">
+                            📅 {formatDate(institute.upcomingBatches[0].startDate)}
                           </span>
-                        ))}
-                        {institute.branches.length > 3 && (
-                          <span className="text-xs px-2 py-1 bg-gray-100 text-gray-500 rounded">
-                            +{institute.branches.length - 3} more
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            institute.upcomingBatches[0].mode === "ONLINE"
+                              ? "bg-purple-100 text-purple-700"
+                              : "bg-green-100 text-green-700"
+                          }`}>
+                            {institute.upcomingBatches[0].mode}
                           </span>
-                        )}
+                        </div>
+                        <div className="text-gray-600 text-xs mt-1">
+                          {institute.upcomingBatches[0].city || institute.city} • 
+                          ₹{institute.upcomingBatches[0].fee.toLocaleString("en-IN")} • 
+                          {institute.upcomingBatches[0].seatsAvailable} seats left
+                        </div>
                       </div>
                     </div>
                   )}
 
-                  {/* Contact */}
-                  {institute.contactPhone && (
+                  {/* Actions */}
+                  <div className="flex gap-2">
+                    <Link
+                      href={`/course/enroll?institute=${institute.id}`}
+                      className="flex-1 text-center px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 text-sm"
+                    >
+                      View Batches
+                    </Link>
+                    <a
+                      href={`https://wa.me/91${institute.contactPhone}?text=Hi, I want to know about MahaRERA training at ${institute.name}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700"
+                      title="WhatsApp"
+                    >
+                      💬
+                    </a>
                     <a
                       href={`tel:${institute.contactPhone}`}
-                      className="block w-full text-center bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg font-medium transition-colors"
+                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300"
+                      title="Call"
                     >
-                      📞 {institute.contactPhone}
+                      📞
                     </a>
-                  )}
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         )}
 
-        {/* CTA */}
-        <div className="mt-12 text-center">
-          <p className="text-gray-600 mb-4">
-            Want to become a certified MahaRERA agent?
+        {/* CTA Section */}
+        <div className="mt-8 bg-gradient-to-r from-green-600 to-emerald-700 text-white rounded-xl p-6 text-center">
+          <h3 className="text-xl font-bold mb-2">Want to Become a Training Partner?</h3>
+          <p className="text-green-100 mb-4">
+            Join our network of verified MahaRERA training institutes
           </p>
-          <Link
-            href="/agent-guide"
-            className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium transition-colors"
+          <a
+            href="https://wa.me/918850150878?text=Hi, I want to register my institute as a MahaRERA training partner"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block px-6 py-3 bg-white text-green-700 rounded-lg font-semibold hover:bg-green-50"
           >
-            View Complete Guide →
-          </Link>
+            Register Your Institute →
+          </a>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

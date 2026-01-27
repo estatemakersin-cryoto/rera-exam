@@ -1,6 +1,6 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // PATH: app/api/admin/payments/route.ts
-// Admin Payments API - GET list with status filter
+// Admin Payments API - Fetches from both PaymentProof and ExamPayment
 // ══════════════════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from "next/server";
@@ -16,8 +16,8 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const statusParam = searchParams.get("status");
 
-    // Get payments with user info
-    const payments = await prisma.paymentProof.findMany({
+    // Get payments from PaymentProof (exam package, additional test)
+    const paymentProofs = await prisma.paymentProof.findMany({
       where: statusParam ? { status: statusParam as "PENDING" | "APPROVED" | "REJECTED" } : {},
       orderBy: { createdAt: "desc" },
       include: {
@@ -31,19 +31,59 @@ export async function GET(req: NextRequest) {
       },
     });
 
+    // Get payments from ExamPayment (training course)
+    const examPayments = await prisma.examPayment.findMany({
+      where: statusParam ? { status: statusParam as "PENDING" | "APPROVED" | "REJECTED" } : {},
+      orderBy: { createdAt: "desc" },
+      include: {
+        user: {
+          select: {
+            fullName: true,
+            mobile: true,
+            email: true,
+          },
+        },
+        institute: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+
+    // Merge and sort by createdAt
+    const allPayments = [
+      ...paymentProofs.map((p) => ({
+        ...p,
+        source: "paymentProof" as const,
+        instituteName: null as string | null,
+      })),
+      ...examPayments.map((p) => ({
+        ...p,
+        source: "examPayment" as const,
+        instituteName: p.institute?.name || null,
+      })),
+    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
     // Get counts for tabs
-    const [pendingCount, approvedCount, rejectedCount] = await Promise.all([
+    const [proofPending, proofApproved, proofRejected] = await Promise.all([
       prisma.paymentProof.count({ where: { status: "PENDING" } }),
       prisma.paymentProof.count({ where: { status: "APPROVED" } }),
       prisma.paymentProof.count({ where: { status: "REJECTED" } }),
     ]);
 
+    const [examPending, examApproved, examRejected] = await Promise.all([
+      prisma.examPayment.count({ where: { status: "PENDING" } }),
+      prisma.examPayment.count({ where: { status: "APPROVED" } }),
+      prisma.examPayment.count({ where: { status: "REJECTED" } }),
+    ]);
+
     return NextResponse.json({
-      payments,
+      payments: allPayments,
       counts: {
-        PENDING: pendingCount,
-        APPROVED: approvedCount,
-        REJECTED: rejectedCount,
+        PENDING: proofPending + examPending,
+        APPROVED: proofApproved + examApproved,
+        REJECTED: proofRejected + examRejected,
       },
     });
   } catch (error) {

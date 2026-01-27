@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
       amount = await getConfig<number>("additional_test_price") || 100;
       planType = "ADDITIONAL_TEST";
     } else {
-      amount = await getConfig<number>("exam_package_price") || 350;
+      amount = await getConfig<number>("exam_package_price") || 1000;
       planType = "PACKAGE";
     }
 

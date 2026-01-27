@@ -10,9 +10,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 const ADMIN_WA_1 = "918850150878";
 const ADMIN_WA_2 = "919699091086";
-
-const UPI_ID = "vaishkamath@oksbi";
-const UPI_NAME = "Vaishali Kamath";
 const UPI_MOBILE = "9699091086";
 
 interface Settings {
@@ -27,9 +24,17 @@ function PaymentContent() {
 
   const [user, setUser] = useState<any>(null);
   const [settings, setSettings] = useState<Settings>({
-    examPackagePrice: 350,
+    examPackagePrice: 1000,
     additionalTestPrice: 100,
   });
+  
+  // ✅ Move upiDetails INSIDE the component
+  const [upiDetails, setUpiDetails] = useState({
+    upiId: "vaishkamath@oksbi",
+    upiName: "Vaishali Kamath",
+    upiPhone: UPI_MOBILE,
+  });
+  
   const [loadingUser, setLoadingUser] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -65,6 +70,14 @@ function PaymentContent() {
 
     loadData();
   }, [router]);
+
+  // ✅ Fetch UPI settings
+  useEffect(() => {
+    fetch("/api/public/upi?type=exam")
+      .then((res) => res.json())
+      .then((data) => setUpiDetails(data))
+      .catch(console.error);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,13 +134,13 @@ function PaymentContent() {
 
   if (success) {
     const msg =
-      "Payment submitted for EstateMakers MahaRERA:\n\n" +
+      "💳 Payment for EstateMakers MahaRERA\n\n" +
       "Name: " + (user?.fullName || "") + "\n" +
       "Mobile: " + (user?.mobile || "") + "\n" +
       "Plan: " + planName + "\n" +
-      "Amount: Rs." + amount + "\n" +
+      "Amount: ₹" + amount + "\n" +
       "UPI Ref: " + transactionId + "\n\n" +
-      "Please verify and activate.";
+      "📎 Payment screenshot attached below 👇";
 
     const wa1 = "https://wa.me/" + ADMIN_WA_1 + "?text=" + encodeURIComponent(msg);
     const wa2 = "https://wa.me/" + ADMIN_WA_2 + "?text=" + encodeURIComponent(msg);
@@ -164,8 +177,8 @@ function PaymentContent() {
             Go to Dashboard
           </button>
 
-          <p className="text-xs text-gray-500 mt-3">
-            You will be redirected to dashboard after sending screenshot.
+          <p className="text-xs text-gray-500 mt-3 text-center">
+            💡 Tap 📎 in WhatsApp to attach your payment screenshot
           </p>
         </div>
       </div>
@@ -210,15 +223,17 @@ function PaymentContent() {
               <p className="font-semibold mb-2">Scan and Pay</p>
 
               <img
-                src="/vaishali-qr.png"
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
+                  `upi://pay?pa=${upiDetails.upiId}&pn=${upiDetails.upiName}&am=${amount}&cu=INR`
+                )}`}
                 alt="UPI QR"
                 className="mx-auto w-48 h-48 object-contain border rounded-lg bg-white shadow"
               />
 
               <div className="text-sm text-gray-700 mt-3">
-                <p><strong>UPI Name:</strong> {UPI_NAME}</p>
-                <p><strong>UPI ID:</strong> {UPI_ID}</p>
-                <p><strong>Mobile:</strong> {UPI_MOBILE}</p>
+                <p><strong>UPI Name:</strong> {upiDetails.upiName}</p>
+                <p><strong>UPI ID:</strong> {upiDetails.upiId}</p>
+                <p><strong>Mobile:</strong> {upiDetails.upiPhone || UPI_MOBILE}</p>
                 <p><strong>Amount:</strong> <span className="text-lg font-bold text-green-600">&#8377;{amount}</span></p>
               </div>
 

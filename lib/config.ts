@@ -198,7 +198,7 @@ export const CONFIG_KEYS = {
 // ══════════════════════════════════════════════════════════════════════════════
 
 export async function getExamPackagePrice(): Promise<number> {
-  return getConfigOrDefault(CONFIG_KEYS.EXAM_PACKAGE_PRICE, 350);
+  return getConfigOrDefault(CONFIG_KEYS.EXAM_PACKAGE_PRICE, 1000);
 }
 
 export async function getExamPackageTests(): Promise<number> {

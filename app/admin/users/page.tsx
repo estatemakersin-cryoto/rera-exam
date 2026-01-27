@@ -217,7 +217,7 @@ export default function UsersPage() {
                             : "bg-gray-100 text-gray-800"
                         }`}
                       >
-                        {user.packagePurchased ? "Premium ₹350" : "Free User"}
+                        {user.packagePurchased ? "Premium ₹1000" : "Free User"}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">

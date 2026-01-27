@@ -17,10 +17,14 @@ async function main() {
   
   const configs = [
     // PRICING
-    { key: 'exam_package_price', value: '350', label: 'Revision & Mock Test Package Price (₹)', description: 'Price for B2C package (Revision Notes + 2 Mock Tests)', category: 'PRICING', dataType: ConfigDataType.NUMBER, isEditable: true, isPublic: true },
+    { key: 'exam_package_price', value: '1000', label: 'Revision & Mock Test Package Price (₹)', description: 'Price for B2C package (Revision Notes + 2 Mock Tests)', category: 'PRICING', dataType: ConfigDataType.NUMBER, isEditable: true, isPublic: true },
     { key: 'exam_package_tests', value: '2', label: 'Tests Per Package', description: 'Number of mock tests included in package', category: 'PRICING', dataType: ConfigDataType.NUMBER, isEditable: true, isPublic: true },
     { key: 'additional_test_price', value: '100', label: 'Additional Test Price (₹)', description: 'Price for additional mock test', category: 'PRICING', dataType: ConfigDataType.NUMBER, isEditable: true, isPublic: true },
     { key: 'exam_package_validity_days', value: '100', label: 'Package Validity (Days)', description: 'Number of days package remains valid after purchase', category: 'PRICING', dataType: ConfigDataType.NUMBER, isEditable: true, isPublic: true },
+
+    // TRAINING COURSE (NEW)
+    { key: 'trainingCourseFee', value: '5900', label: 'Training Course Fee (₹)', description: 'MahaRERA Training Course fee in INR (inclusive of GST)', category: 'PRICING', dataType: ConfigDataType.NUMBER, isEditable: true, isPublic: true },
+    { key: 'trainingCourseName', value: 'MahaRERA Agent Training Course', label: 'Training Course Name', description: 'Display name for the training course', category: 'COURSE', dataType: ConfigDataType.STRING, isEditable: true, isPublic: true },
 
     // EXAM SETTINGS
     { key: 'exam_duration_minutes', value: '60', label: 'Exam Duration (Minutes)', description: 'Duration of mock test in minutes', category: 'EXAM', dataType: ConfigDataType.NUMBER, isEditable: true, isPublic: true },

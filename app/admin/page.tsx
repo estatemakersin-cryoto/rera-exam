@@ -22,6 +22,10 @@ interface AdminStats {
   activeInstitutes: number;
   totalBranches: number;
   totalBatches: number;
+  // Course stats
+  pendingEnrollments: number;
+  totalEnrollments: number;
+  courseRevenue: number;
 }
 
 export default function AdminPage() {
@@ -89,7 +93,7 @@ export default function AdminPage() {
       {(stats?.pendingPayments || 0) > 0 && (
         <Link
           href="/admin/payments"
-          className="block mb-6 bg-red-50 border border-red-200 rounded-lg p-4 hover:bg-red-100 transition-colors"
+          className="block mb-4 bg-red-50 border border-red-200 rounded-lg p-4 hover:bg-red-100 transition-colors"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -102,6 +106,29 @@ export default function AdminPage() {
               </div>
             </div>
             <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </Link>
+      )}
+
+      {/* Pending Course Enrollments Alert */}
+      {(stats?.pendingEnrollments || 0) > 0 && (
+        <Link
+          href="/admin/payments"
+          className="block mb-6 bg-orange-50 border border-orange-200 rounded-lg p-4 hover:bg-orange-100 transition-colors"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="bg-orange-500 text-white rounded-full w-10 h-10 flex items-center justify-center font-bold">
+                {stats?.pendingEnrollments}
+              </div>
+              <div>
+                <p className="font-semibold text-orange-800">🎓 Course Enrollments Pending</p>
+                <p className="text-orange-600 text-sm">Training course payments to approve</p>
+              </div>
+            </div>
+            <svg className="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </div>
@@ -172,6 +199,34 @@ export default function AdminPage() {
         </div>
       </div>
 
+      {/* Course Stats - 4 columns */}
+      <div className="mb-6">
+        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">🎓 Training Course</h2>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white rounded-lg shadow p-4 border-l-4 border-amber-500">
+            <p className="text-gray-500 text-xs font-medium">Total Enrollments</p>
+            <p className="text-2xl font-bold text-amber-700">{stats?.totalEnrollments || 0}</p>
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-4 border-l-4 border-orange-500">
+            <p className="text-gray-500 text-xs font-medium">Pending Approval</p>
+            <p className="text-2xl font-bold text-orange-700">{stats?.pendingEnrollments || 0}</p>
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-4 border-l-4 border-lime-500">
+            <p className="text-gray-500 text-xs font-medium">Course Revenue</p>
+            <p className="text-2xl font-bold text-lime-700">
+              &#8377;{stats?.courseRevenue?.toLocaleString("en-IN") || 0}
+            </p>
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-4 border-l-4 border-teal-500">
+            <p className="text-gray-500 text-xs font-medium">Active Batches</p>
+            <p className="text-2xl font-bold text-teal-700">{stats?.totalBatches || 0}</p>
+          </div>
+        </div>
+      </div>
+
       {/* Institute Stats - 4 columns */}
       <div className="mb-8">
         <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Institutes</h2>
@@ -193,7 +248,7 @@ export default function AdminPage() {
 
           <div className="bg-white rounded-lg shadow p-4 border-l-4 border-gray-500">
             <p className="text-gray-500 text-xs font-medium">Institute Students</p>
-            <p className="text-2xl font-bold text-gray-700">0</p>
+            <p className="text-2xl font-bold text-gray-700">{stats?.totalEnrollments || 0}</p>
           </div>
         </div>
       </div>

@@ -87,7 +87,7 @@ export async function GET() {
       where: { isActive: true },
     });
 
-    const examPackagePrice = await getConfig<number>("exam_package_price") || 350;
+    const examPackagePrice = await getConfig<number>("exam_package_price") || 1000;
 
     return NextResponse.json({
       // User stats

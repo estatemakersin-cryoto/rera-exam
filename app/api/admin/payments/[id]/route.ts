@@ -1,7 +1,7 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // PATH: app/api/admin/payments/[id]/route.ts
 // Admin Payment Action - Approve or Reject a payment
-// Handles both new (PACKAGE) and legacy (PREMIUM_PLAN) types
+// Handles both PaymentProof and ExamPayment models
 // ══════════════════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from "next/server";
@@ -16,7 +16,7 @@ export async function PATCH(
     await requireAdmin();
 
     const { id } = await params;
-    const { action } = await req.json();
+    const { action, source } = await req.json();
 
     if (!action || !["approve", "reject"].includes(action)) {
       return NextResponse.json(
@@ -25,81 +25,104 @@ export async function PATCH(
       );
     }
 
-    // Get the payment
+    const newStatus = action === "approve" ? "APPROVED" : "REJECTED";
+
+    // Handle ExamPayment (course enrollment)
+    if (source === "examPayment") {
+      const payment = await prisma.examPayment.findUnique({
+        where: { id },
+        include: { user: true },
+      });
+
+      if (!payment) {
+        return NextResponse.json({ error: "Payment not found" }, { status: 404 });
+      }
+
+      if (payment.status !== "PENDING") {
+        return NextResponse.json({ error: "Payment already processed" }, { status: 400 });
+      }
+
+      // Update payment status
+      await prisma.examPayment.update({
+        where: { id },
+        data: {
+          status: newStatus,
+          approvedAt: action === "approve" ? new Date() : null,
+          rejectedAt: action === "reject" ? new Date() : null,
+        },
+      });
+
+      // Update InstituteStudent status
+      if (payment.planType === "TRAINING_COURSE") {
+        const instituteStudent = await prisma.instituteStudent.findFirst({
+          where: {
+            userId: payment.userId,
+            status: "APPLIED",
+          },
+          orderBy: { appliedAt: "desc" },
+        });
+
+        if (instituteStudent) {
+          await prisma.instituteStudent.update({
+            where: { id: instituteStudent.id },
+            data: {
+              status: action === "approve" ? "ENROLLED" : "DROPPED",
+              enrolledAt: action === "approve" ? new Date() : null,
+            },
+          });
+        }
+      }
+
+      return NextResponse.json({ success: true, status: newStatus });
+    }
+
+    // Handle PaymentProof (exam package, additional test)
     const payment = await prisma.paymentProof.findUnique({
       where: { id },
       include: { user: true },
     });
 
     if (!payment) {
-      return NextResponse.json(
-        { error: "Payment not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Payment not found" }, { status: 404 });
     }
 
     if (payment.status !== "PENDING") {
-      return NextResponse.json(
-        { error: "Payment already processed" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Payment already processed" }, { status: 400 });
     }
 
-    const newStatus = action === "approve" ? "APPROVED" : "REJECTED";
-
-    // Use transaction for approve action
-    if (action === "approve") {
-      await prisma.$transaction(async (tx) => {
-        // Update payment status
-        await tx.paymentProof.update({
-          where: { id },
-          data: { status: newStatus },
-        });
-
-        // Check if it's a package purchase (handle both new and legacy types)
-        const isPackagePurchase = 
-          payment.planType === "PACKAGE" || 
-          payment.planType === "PREMIUM_PLAN";
-
-        if (isPackagePurchase) {
-          // Full package - enable access + set tests
-          await tx.user.update({
-            where: { id: payment.userId },
-            data: {
-              packagePurchased: true,
-              packagePurchasedDate: new Date(),
-              testsCompleted: 0, // Reset tests completed
-            },
-          });
-        } else if (payment.planType === "ADDITIONAL_TEST") {
-          // Additional test - decrement testsCompleted by 1 (gives +1 test)
-          await tx.user.update({
-            where: { id: payment.userId },
-            data: {
-              testsCompleted: {
-                decrement: 1,
-              },
-            },
-          });
-        }
-      });
-    } else {
-      // Just reject - update status only
-      await prisma.paymentProof.update({
-        where: { id },
-        data: { status: newStatus },
-      });
-    }
-
-    return NextResponse.json({
-      success: true,
-      status: newStatus,
+    // Update payment status
+    await prisma.paymentProof.update({
+      where: { id },
+      data: { status: newStatus },
     });
+
+    // If approved, update user access
+    if (action === "approve") {
+      const isPackagePurchase =
+        payment.planType === "PACKAGE" || payment.planType === "PREMIUM_PLAN";
+
+      if (isPackagePurchase) {
+        await prisma.user.update({
+          where: { id: payment.userId },
+          data: {
+            packagePurchased: true,
+            packagePurchasedDate: new Date(),
+            testsCompleted: 0,
+          },
+        });
+      } else if (payment.planType === "ADDITIONAL_TEST") {
+        await prisma.user.update({
+          where: { id: payment.userId },
+          data: {
+            testsCompleted: { decrement: 1 },
+          },
+        });
+      }
+    }
+
+    return NextResponse.json({ success: true, status: newStatus });
   } catch (error) {
     console.error("Payment Action Error:", error);
-    return NextResponse.json(
-      { error: "Failed to process payment" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to process payment" }, { status: 500 });
   }
 }
